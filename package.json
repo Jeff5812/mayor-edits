@@ -1,5 +1,5 @@
 {
-  "name": "mayor-studios",
+  "name": "mayor-edits",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,28 +9,30 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test --workers=1",
-    "scan:build": "node e2e/scan-build.mjs"
+    "test:e2e": "playwright test --workers=1"
   },
   "dependencies": {
     "@fontsource-variable/chivo-mono": "5.3.0",
-    "@fontsource-variable/noto-sans-arabic": "5.3.0",
-    "@fontsource-variable/noto-sans-devanagari": "5.3.0",
+    "@fontsource-variable/league-gothic": "5.3.0",
     "@fontsource-variable/onest": "5.3.1",
-    "@formatjs/icu-messageformat-parser": "3.5.22",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.118.0",
+    "aws4fetch": "1.0.20",
     "next": "16.4.5",
-    "next-intl": "4.14.9",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.64.1",
+    "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
+    "tailwindcss": "4.3.3",
     "typescript": "^5",
     "vitest": "5.1.0"
   }

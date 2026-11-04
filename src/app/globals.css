@@ -1,49 +1,1065 @@
+@import "tailwindcss";
+
+/* The room: rich near-blacks with a trace of cool grade, stepping up through raised surfaces. All tones stay
+   close together. The only strong colour on the page comes from the work itself. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  --bg: #090a0d;
+  --surface-1: #101216;
+  --surface-2: #171a1f;
+  --surface-3: #22262d;
+  --surface-4: #2d323a;
+  --line-1: #1b1e23; /* Section hairlines. Decorative. */
+  --line-2: #2a2e34; /* Row hairlines. Decorative. */
+  --line-3: #6e737b; /* Borders that identify a control. Meets 3:1. */
+  --text-1: #ffffff;
+  --text-2: #bcbfc6;
+  --text-3: #8e929a;
+  --danger: #ff7a70; /* Admin validation and upload errors only. Never on the public page. */
+
+  --gutter: 20px;
+  --hero-size: 19.2vw;
+  --film-run: 1400px; /* An exact multiple of the 28px sprocket spacing, so the holes line up when the loop restarts. */
+  --film-time: 35s; /* In proportion to the distance, so the strip runs at the same speed on every screen. */
+  --content-max: 1728px;
+  --section-y: clamp(3.5rem, 2.5rem + 3vw, 6rem);
+
+  /* Depth: one edge of light on top, one contact shadow, one long soft shadow. Everything raised uses these. */
+  --edge: inset 0 1px 0 rgb(255 255 255 / 0.1), inset 0 0 0 1px rgb(255 255 255 / 0.035);
+  --lift-1: 0 1px 2px rgb(0 0 0 / 0.6), 0 12px 22px -10px rgb(0 0 0 / 0.75), 0 36px 64px -28px rgb(0 0 0 / 0.95);
+  --lift-2: 0 2px 4px rgb(0 0 0 / 0.6), 0 18px 32px -12px rgb(0 0 0 / 0.8), 0 52px 84px -32px rgb(0 0 0 / 1);
+
+  --dur-ui: 200ms;
+  --dur-settle: 600ms;
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Fine film grain. It also stops the soft gradients banding on near-black. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-@media (prefers-color-scheme: dark) {
+@media (min-width: 640px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --gutter: 32px;
+    --hero-size: 8.6vw;
+    --film-run: 2800px;
+    --film-time: 70s;
   }
 }
 
-html {
-  height: 100%;
+/* From here the headline stands in its own column beside the lead frame, over three lines. */
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 40px;
+    --hero-size: min(7.6vw, 8.6rem);
+  }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+@media (min-width: 1600px) {
+  :root {
+    --gutter: 56px;
+  }
 }
 
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Limits layout shift while Onest arrives. Latin only, so it never takes other scripts. */
+@font-face {
+  font-family: "Onest Fallback";
+  src: local("Arial");
+  ascent-override: 97%;
+  descent-override: 30.5%;
+  line-gap-override: 0%;
+  unicode-range: U+0000-00FF;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+@theme inline {
+  --color-ink: var(--bg);
+  --color-graphite: var(--surface-1);
+  --color-charcoal: var(--surface-2);
+  --color-hairline: var(--line-1);
+  --color-line: var(--line-2);
+  --color-line-strong: var(--line-3);
+  --color-bone: var(--text-1);
+  --color-ash: var(--text-2);
+  --color-mute: var(--text-3);
+  --color-danger: var(--danger);
+  --font-sans: "Onest Variable", "Onest Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-league-gothic), "Arial Narrow", Impact, sans-serif;
+  --font-time: "Chivo Mono Variable", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Display type: one tall condensed face, always in capitals, set tight. Owner-entered text keeps its own
+   letters in the source, because the capitals come from CSS. */
+@utility display {
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.006em;
+  line-height: 0.94;
+  text-transform: uppercase;
 }
 
-@media (prefers-color-scheme: dark) {
+@utility display-hero {
+  font-size: var(--hero-size);
+}
+
+@utility display-section {
+  font-size: clamp(2.875rem, 6.4vw, 7rem);
+  text-wrap: balance;
+}
+
+/* Small tracked capitals for labels, so the type has a clear third level under the display face and body. */
+@utility label {
+  color: var(--text-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@utility text-heading {
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 5vw, 4.5rem);
+  letter-spacing: 0.006em;
+  line-height: 0.96;
+  text-transform: uppercase;
+}
+
+@utility page-shell {
+  margin-inline: auto;
+  max-inline-size: calc(var(--content-max) + 2 * var(--gutter));
+  padding-inline: var(--gutter);
+  width: 100%;
+}
+
+/* In the base layer, so that a utility class on an element can always override these. */
+@layer base {
   html {
-    color-scheme: dark;
+    background: var(--bg);
+    scroll-behavior: smooth;
+    scroll-padding-block-start: 5.5rem;
+  }
+
+  body {
+    background: var(--grain), var(--bg);
+    color: var(--text-2);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--text-1);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Large headlines catch the light: bright at the top of each line, falling to silver at the foot, and
+     standing off the page on their own shadow. */
+  .display-deep {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    background: linear-gradient(to bottom, #ffffff 22%, #d4d7dc 62%, #9a9ea6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .display-lift {
+    filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.65)) drop-shadow(0 14px 22px rgb(0 0 0 / 0.6));
+  }
+
+  /* Tall condensed letters at small sizes can look grey on standard screens, so they get a touch more body. */
+  .display-small {
+    -webkit-text-stroke: 0.3px currentColor;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.75);
+  }
+
+  /* A raised surface: the one material for cards and panels, so depth is consistent across the page. */
+  .plate {
+    background: linear-gradient(to bottom, var(--surface-3), var(--surface-2) 34%, var(--surface-1));
+    border-radius: 4px;
+    box-shadow: var(--edge), var(--lift-1);
+  }
+
+  /* Buttons have thickness: a lit top edge, a shaded bottom edge, a shadow under them, and they press in. */
+  .btn {
+    border-radius: 3px;
+    transition:
+      transform 180ms var(--ease-ui),
+      box-shadow 180ms var(--ease-ui),
+      filter 180ms var(--ease-ui);
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn:active {
+    transform: translateY(1px);
+  }
+
+  .btn:disabled {
+    transform: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(to bottom, #ffffff, #eceef1 52%, #c8ccd3);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.95),
+      inset 0 -2px 0 rgb(9 10 13 / 0.14),
+      0 1px 2px rgb(0 0 0 / 0.65),
+      0 12px 24px -10px rgb(0 0 0 / 0.85);
+    color: var(--bg);
+  }
+
+  .btn-primary:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 1),
+      inset 0 -2px 0 rgb(9 10 13 / 0.12),
+      0 2px 3px rgb(0 0 0 / 0.65),
+      0 18px 30px -10px rgb(0 0 0 / 0.9);
+    filter: brightness(1.04);
+  }
+
+  .btn-primary:active {
+    box-shadow:
+      inset 0 2px 4px rgb(9 10 13 / 0.28),
+      0 1px 1px rgb(0 0 0 / 0.6);
+  }
+
+  .btn-outline {
+    background: linear-gradient(to bottom, var(--surface-4), var(--surface-2));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.16),
+      inset 0 -2px 0 rgb(0 0 0 / 0.32),
+      0 0 0 1px rgb(0 0 0 / 0.5),
+      0 12px 24px -10px rgb(0 0 0 / 0.85);
+    color: var(--text-1);
+  }
+
+  .btn-outline:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.22),
+      inset 0 -2px 0 rgb(0 0 0 / 0.32),
+      0 0 0 1px rgb(0 0 0 / 0.5),
+      0 18px 30px -10px rgb(0 0 0 / 0.9);
+    filter: brightness(1.12);
+  }
+
+  .btn-outline:active {
+    box-shadow:
+      inset 0 2px 5px rgb(0 0 0 / 0.5),
+      0 0 0 1px rgb(0 0 0 / 0.5);
+  }
+
+  /* The header floats over the page as its own raised bar. */
+  .header-bar {
+    background: linear-gradient(to bottom, rgb(45 50 58 / 0.94), rgb(23 26 31 / 0.96));
+    border-radius: 4px;
+    box-shadow: var(--edge), 0 1px 2px rgb(0 0 0 / 0.6), 0 18px 34px -14px rgb(0 0 0 / 0.9);
+  }
+
+  @media (hover: hover) {
+    .header-bar {
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      background: linear-gradient(to bottom, rgb(45 50 58 / 0.78), rgb(23 26 31 / 0.84));
+    }
+  }
+
+  /* The room light: the lead poster, blurred far past recognition, lights the top of the page from behind the
+     frames. It is real light from real work, and with no poster only the neutral key light remains. */
+  .room-light {
+    background: radial-gradient(46% 62% at 14% 16%, rgb(255 255 255 / 0.07), transparent 72%);
+    block-size: clamp(620px, 112vh, 1240px);
+    inset: 0 0 auto;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+    z-index: -1;
+  }
+
+  /* Two slow pools of colour in the room, warm and teal: the classic film grade, kept well below the frames. */
+  .room-light::before,
+  .room-light::after {
+    block-size: 78%;
+    content: "";
+    inline-size: 62%;
+    position: absolute;
+  }
+
+  .room-light::before {
+    background: radial-gradient(closest-side, rgb(222 140 62 / 0.2), transparent);
+    left: -10%;
+    top: -8%;
+  }
+
+  .room-light::after {
+    background: radial-gradient(closest-side, rgb(52 138 156 / 0.2), transparent);
+    right: -8%;
+    top: 4%;
+  }
+
+  .room-light img {
+    filter: blur(90px) saturate(1.15);
+    height: 100%;
+    inset: 4% -8% auto;
+    -webkit-mask-image: radial-gradient(60% 58% at 62% 42%, #000 18%, transparent 100%);
+    mask-image: radial-gradient(60% 58% at 62% 42%, #000 18%, transparent 100%);
+    max-width: none;
+    object-fit: cover;
+    opacity: 0.32;
+    position: absolute;
+    width: 116%;
+  }
+
+  /* A card is a raised plate holding a screen. It leans toward the pointer and catches its light. */
+  .card {
+    transition:
+      transform 320ms var(--ease-settle),
+      box-shadow var(--dur-settle) var(--ease-settle);
+  }
+
+  .card::after {
+    background: radial-gradient(460px circle at var(--glare-x, 50%) var(--glare-y, 0%), rgb(255 255 255 / 0.11), transparent 62%);
+    border-radius: inherit;
+    content: "";
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    transition: opacity 400ms var(--ease-ui);
+    z-index: 5;
+  }
+
+  @media (hover: hover) {
+    .card:hover::after {
+      opacity: 1;
+    }
+  }
+
+  /* The frame's own light, spilling around its plate. Skipped on touch screens to keep phones smooth. */
+  .card-glow {
+    display: none;
+  }
+
+  @media (hover: hover) {
+    .card-glow {
+      display: block;
+      filter: blur(46px) saturate(1.35);
+      height: 88%;
+      inset: 8% 4% auto;
+      max-width: none;
+      object-fit: cover;
+      opacity: 0.16;
+      pointer-events: none;
+      position: absolute;
+      transition: opacity var(--dur-settle) var(--ease-settle);
+      width: 92%;
+      z-index: -1;
+    }
+
+    /* Only cards with a video lift, because lifting tells a visitor that something can be pressed. */
+    .card:not([data-empty]):hover,
+    .card:not([data-empty]):focus-within {
+      box-shadow: var(--edge), var(--lift-2);
+      transform: perspective(1400px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-5px);
+    }
+
+    .card:hover .card-glow,
+    .card:focus-within .card-glow {
+      opacity: 0.38;
+    }
+  }
+
+  /* The screen is set into the plate: a dark seam around it and a shadow falling inward from the top edge. */
+  .frame-inner {
+    background: var(--surface-1);
+    border-radius: 2px;
+    inset: 0;
+    overflow: hidden;
+    position: absolute;
+  }
+
+  .frame-inner::after {
+    border-radius: inherit;
+    box-shadow:
+      inset 0 0 0 1px rgb(0 0 0 / 0.55),
+      inset 0 3px 12px rgb(0 0 0 / 0.5);
+    content: "";
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  /* The default stand-in: a softly lit grey screen with a film leader. The light falls from a different place
+     along each row, so a page of them still reads as a composition and not as one box repeated. */
+  .frame-default {
+    background:
+      var(--grain),
+      radial-gradient(95% 130% at var(--light-x, 24%) -12%, rgb(255 255 255 / 0.13), transparent 70%),
+      linear-gradient(to bottom, #1c2026, #0c0e11);
+    block-size: 100%;
+    color: rgb(255 255 255 / 0.09);
+    inline-size: 100%;
+    inset: 0;
+    position: absolute;
+  }
+
+  .card:nth-child(3n + 2) .frame-default {
+    --light-x: 78%;
+  }
+
+  .card:nth-child(3n) .frame-default {
+    --light-x: 46%;
+  }
+
+  /* A soft leak of warm and teal light, drifting across an empty screen. */
+  .light-leak {
+    background:
+      radial-gradient(38% 52% at 30% 38%, rgb(232 146 66 / 0.2), transparent 72%),
+      radial-gradient(34% 46% at 72% 64%, rgb(58 150 170 / 0.18), transparent 72%);
+    inset: -30%;
+    position: absolute;
+  }
+
+  /* The sweep of a film leader's countdown, inside its circles. */
+  .leader-sweep {
+    aspect-ratio: 1;
+    /* The sharp edge leads as it turns clockwise, and the light fades away behind it. */
+    background: conic-gradient(from 0deg, transparent 74%, rgb(255 255 255 / 0.14));
+    border-radius: 50%;
+    inline-size: 38.75%;
+    left: 30.625%;
+    position: absolute;
+    top: 15.555%;
+  }
+
+  .frame-image {
+    block-size: 100%;
+    inline-size: 100%;
+    object-fit: cover;
+    position: relative;
+    transition: transform 900ms var(--ease-settle);
+  }
+
+  .card:hover .frame-image,
+  .card:focus-within .frame-image {
+    transform: scale(1.035);
+  }
+
+  /* Frames rest slightly graded down, and the lamp comes up when pointed at. */
+  .frame-shade {
+    background:
+      linear-gradient(to top, rgb(9 10 13 / 0.4), transparent 30%),
+      radial-gradient(ellipse at center, transparent 62%, rgb(9 10 13 / 0.2));
+    inset: 0;
+    position: absolute;
+    transition: opacity var(--dur-settle) var(--ease-settle);
+  }
+
+  .card:hover .frame-shade,
+  .card:focus-within .frame-shade {
+    opacity: 0.5;
+  }
+
+  /* An editor's scrub line runs along the frame's bottom edge on hover, and snaps back when the pointer leaves. */
+  .scrub {
+    background: var(--text-1);
+    block-size: 2px;
+    inset: auto 0 0;
+    position: absolute;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 280ms var(--ease-ui);
+  }
+
+  .card:hover .scrub,
+  .card:focus-within .scrub {
+    transform: scaleX(1);
+    transition: transform 1400ms cubic-bezier(0.25, 0.6, 0.3, 1);
+  }
+
+  .frame-play {
+    align-items: center;
+    block-size: 44px;
+    border-radius: 3px;
+    bottom: 14px;
+    display: flex;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    gap: 0.5rem;
+    opacity: 0;
+    padding-inline: 14px 16px;
+    position: absolute;
+    right: 14px;
+    transform: translateY(8px);
+    transition:
+      opacity var(--dur-ui) var(--ease-ui),
+      transform 500ms var(--ease-settle);
+  }
+
+  .card:hover .frame-play,
+  .card:focus-within .frame-play {
+    opacity: 1;
+    transform: none;
+  }
+
+  .card:active .frame-play {
+    transform: scale(0.96);
+  }
+
+  /* Touch has no hover, so the play mark is always there, and a tap gives instant feedback. */
+  @media (hover: none) {
+    .frame-play {
+      block-size: 36px;
+      opacity: 1;
+      padding-inline: 10px;
+      transform: none;
+    }
+
+    .frame-play-label {
+      display: none;
+    }
+
+    .card:active {
+      transform: scale(0.985);
+      transition-duration: var(--dur-ui);
+    }
+  }
+
+  /* What the signed-in owner sees over a frame. Only ever rendered for the owner. */
+  .owner-overlay {
+    align-items: center;
+    background: rgb(9 10 13 / 0.45);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    opacity: 0;
+    position: absolute;
+    transition: opacity var(--dur-ui) var(--ease-ui);
+    z-index: 20;
+  }
+
+  .card:hover .owner-overlay,
+  .owner-overlay:focus-within {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .owner-overlay {
+      opacity: 1;
+    }
+  }
+
+  .owner-edit {
+    left: 18px;
+    opacity: 0;
+    position: absolute;
+    top: 18px;
+    transition: opacity var(--dur-ui) var(--ease-ui);
+    z-index: 20;
+  }
+
+  .card:hover .owner-edit,
+  .owner-edit:focus-visible {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .owner-edit {
+      opacity: 1;
+    }
+  }
+
+  /* Underlines that draw themselves from the left. */
+  .link-draw {
+    background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0 1px;
+    padding-block-end: 2px;
+    transition: background-size 420ms var(--ease-settle);
+  }
+
+  a:hover > .link-draw,
+  .link-draw:hover {
+    background-size: 100% 1px;
+  }
+
+  /* The cinema: the dialog is lit by its own video's poster. */
+  .cinema-light {
+    filter: blur(80px) saturate(1.25);
+    height: 120%;
+    inset: -10%;
+    max-width: none;
+    object-fit: cover;
+    opacity: 0.22;
+    pointer-events: none;
+    position: absolute;
+    width: 120%;
+  }
+
+  .contact-panel {
+    background:
+      var(--grain),
+      radial-gradient(60% 90% at 6% 0%, rgb(222 140 62 / 0.14), transparent 70%),
+      radial-gradient(50% 80% at 96% 100%, rgb(52 138 156 / 0.13), transparent 70%),
+      linear-gradient(to bottom, var(--surface-3), var(--surface-2) 40%, var(--surface-1));
+  }
+
+  /* The record light beside the running timecode. */
+  .rec-light {
+    background: #ff4b3e;
+    block-size: 7px;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgb(255 75 62 / 0.75);
+    inline-size: 7px;
+  }
+
+  /* A strip of film running across the page, with its sprocket holes and a slight lean. */
+  .film-strip {
+    background: linear-gradient(to bottom, var(--surface-3), var(--surface-1));
+    box-shadow: var(--edge), var(--lift-1);
+    inline-size: 106%;
+    margin-block: clamp(0.5rem, 2vw, 1.75rem) clamp(1.5rem, 3vw, 2.75rem);
+    margin-inline-start: -3%;
+    overflow: hidden;
+    rotate: -1.1deg;
+  }
+
+  .film-track {
+    --sprocket: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14'%3E%3Crect x='6' y='3' width='16' height='8' rx='2' fill='%23090a0d'/%3E%3C/svg%3E");
+    background:
+      var(--sprocket) 0 0 / 28px 14px repeat-x,
+      var(--sprocket) 0 100% / 28px 14px repeat-x;
+    display: flex;
+    inline-size: max-content;
+    padding-block: 14px;
+  }
+
+  .film-run {
+    align-items: center;
+    display: flex;
+    inline-size: var(--film-run);
+    justify-content: space-around;
+    padding-block: 0.25rem;
+  }
+
+  .film-word {
+    color: var(--text-1);
+    font-family: var(--font-display);
+    font-size: 2.375rem;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .film-word-outline {
+    color: transparent;
+    -webkit-text-stroke: 1px var(--text-3);
+  }
+
+  .contact-action {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 3.5vw, 3.5rem);
+    letter-spacing: 0.01em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  /* The name as an end title, across the full width of the page. Tall enough a box that no letter is clipped. */
+  .end-title {
+    cursor: pointer;
+    display: flex;
+    font-family: var(--font-display);
+    font-size: 25.4vw;
+    justify-content: center;
+    letter-spacing: 0.006em;
+    line-height: 1;
+    margin-block-end: clamp(1.5rem, 3vw, 3rem);
+    text-transform: uppercase;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .end-title-space {
+    inline-size: 0.2em;
+  }
+
+  .end-title-letter {
+    background: linear-gradient(to bottom, #3b414b, var(--surface-3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    position: relative;
+    transition: translate 500ms var(--ease-settle);
+  }
+
+  /* The lit copy of each letter sits on top, so lighting one up only changes opacity. */
+  .end-title-letter::after {
+    background: linear-gradient(to bottom, #ffffff 22%, #d4d7dc 62%, #9a9ea6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    content: attr(data-letter);
+    filter: drop-shadow(0 0 26px rgb(255 255 255 / 0.22));
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    transition: opacity 600ms var(--ease-settle);
+  }
+
+  .end-title-letter:hover {
+    translate: 0 -2.5%;
+  }
+
+  .end-title-letter:hover::after {
+    opacity: 1;
+    transition-duration: 120ms;
+  }
+
+  /* The letters either side catch a little of the same light. */
+  .end-title-letter:hover + .end-title-letter::after,
+  .end-title-letter:has(+ .end-title-letter:hover)::after {
+    opacity: 0.32;
+    transition-duration: 200ms;
+  }
+
+  /* Keyboard focus lights the whole name. */
+  .end-title:focus-visible .end-title-letter::after {
+    opacity: 0.6;
+  }
+
+  /* The header's timeline: fine ticks with a taller one every fifth, and a playhead that follows the scroll. It
+     sits in the bar between the name and the button, and along the bar's bottom edge on a phone. */
+  .header-timeline {
+    block-size: 6px;
+    container-type: inline-size;
+    inset: auto 12px 5px;
+    position: absolute;
+  }
+
+  .header-timeline::before {
+    background:
+      repeating-linear-gradient(to right, rgb(255 255 255 / 0.3) 0 1px, transparent 1px 60px) 0 100% / 100% 100% no-repeat,
+      repeating-linear-gradient(to right, rgb(255 255 255 / 0.16) 0 1px, transparent 1px 12px) 0 100% / 100% 50% no-repeat;
+    content: "";
+    inset: 0;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+    position: absolute;
+  }
+
+  .header-playhead {
+    background: var(--text-1);
+    box-shadow: 0 0 10px rgb(255 255 255 / 0.45);
+    inline-size: 2px;
+    inset: 0 auto 0 0;
+    position: absolute;
+  }
+
+  /* The same triangular head as the brand mark's playhead. */
+  .header-playhead::before {
+    background: var(--text-1);
+    block-size: 6px;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    content: "";
+    inline-size: 8px;
+    left: -3px;
+    position: absolute;
+    top: -5px;
+  }
+
+  @media (min-width: 640px) {
+    .header-timeline {
+      block-size: 16px;
+      flex: 1;
+      inset: auto;
+      min-inline-size: 0;
+      position: relative;
+    }
+
+    .header-playhead::before {
+      top: -4px;
+    }
+  }
+
+  /* The Contact us menu: a raised plate that drops from the button. */
+  .contact-menu {
+    color: var(--text-1);
+    inline-size: min(21rem, calc(100vw - 2 * var(--gutter)));
+    inset: auto;
+    margin: 0;
+    opacity: 0;
+    padding: 0.5rem;
+    position: fixed;
+    right: max(var(--gutter), calc((100vw - var(--content-max)) / 2));
+    top: 4.6rem;
+    transition:
+      opacity var(--dur-ui) var(--ease-ui),
+      translate 350ms var(--ease-settle),
+      overlay var(--dur-ui) allow-discrete,
+      display var(--dur-ui) allow-discrete;
+    translate: 0 -8px;
+  }
+
+  .contact-menu:popover-open {
+    display: grid;
+    gap: 0.25rem;
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .contact-menu:popover-open {
+      opacity: 0;
+      translate: 0 -8px;
+    }
+  }
+
+  .contact-chevron {
+    transition: rotate 300ms var(--ease-settle), translate 300ms var(--ease-settle);
+  }
+
+  .contact-trigger:hover .contact-chevron {
+    translate: 0 1px;
+  }
+
+  .contact-trigger:has(+ .contact-menu:popover-open) .contact-chevron {
+    rotate: 180deg;
+  }
+
+  @media (min-width: 1840px) {
+    .end-title {
+      font-size: 29rem;
+    }
+  }
+}
+
+/* Motion. Everything here is opacity, transform or clip, so it stays smooth on mid-range phones, and it only
+   exists for people who have not asked for less motion. Delays stay short, because the lead frame is the first
+   thing a visitor should see. */
+@keyframes lights-up {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes settle {
+  from {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes scrub-reveal {
+  from {
+    clip-path: inset(-12% 100% -12% 0);
+  }
+
+  to {
+    clip-path: inset(-12% -2% -12% 0);
+  }
+}
+
+@keyframes playhead {
+  0% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  86% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+
+@keyframes header-scrub {
+  to {
+    transform: translateX(100cqi);
+  }
+}
+
+@keyframes drift-warm {
+  to {
+    transform: translate(9%, 12%) scale(1.14);
+  }
+}
+
+@keyframes drift-cool {
+  to {
+    transform: translate(-11%, 8%) scale(1.1);
+  }
+}
+
+@keyframes leak-drift {
+  to {
+    transform: translate(16%, -10%);
+  }
+}
+
+@keyframes leader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rec-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes film-run {
+  to {
+    transform: translateX(calc(-1 * var(--film-run)));
+  }
+}
+
+/* The slow movement that keeps the page alive. Only transform and opacity, so it costs the phone almost nothing. */
+@media (prefers-reduced-motion: no-preference) {
+  .room-light::before {
+    animation: drift-warm 26s ease-in-out infinite alternate;
+  }
+
+  .room-light::after {
+    animation: drift-cool 32s ease-in-out infinite alternate;
+  }
+
+  .light-leak {
+    animation: leak-drift 17s ease-in-out infinite alternate;
+    animation-delay: calc(var(--order, 0) * -5s);
+  }
+
+  .leader-sweep {
+    animation: leader-spin 9s linear infinite;
+    animation-delay: calc(var(--order, 0) * -2.3s);
+  }
+
+  .rec-light {
+    animation: rec-blink 1.6s ease-in-out infinite;
+  }
+
+  .film-track {
+    animation: film-run var(--film-time) linear infinite;
+  }
+
+  .film-strip:hover .film-track {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The header's playhead travels the timeline as the page scrolls, top to bottom. */
+  @supports (animation-timeline: scroll()) {
+    .header-playhead {
+      animation: header-scrub linear both;
+      animation-timeline: scroll(root block);
+    }
+  }
+
+  .anim-lights {
+    animation: lights-up 1200ms ease-out both;
+  }
+
+  .anim-rise {
+    animation: rise 800ms var(--ease-settle) both;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  .anim-scrub {
+    animation: scrub-reveal 1000ms cubic-bezier(0.6, 0, 0.15, 1) 60ms both;
+  }
+
+  /* The playhead that wipes the headline on: a box as wide as the text, showing only its right edge. */
+  .anim-playhead::after {
+    animation: playhead 1000ms cubic-bezier(0.6, 0, 0.15, 1) 60ms both;
+    border-inline-end: 2px solid var(--text-1);
+    content: "";
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  /* The first frames come up in sequence as the page opens, and their images settle into place. */
+  .reveal-load {
+    animation: rise 800ms var(--ease-settle) both;
+    animation-delay: calc(var(--order, 0) * 70ms);
+  }
+
+  .reveal-load .frame-image {
+    animation: settle 1200ms var(--ease-settle) backwards;
+    animation-delay: calc(var(--order, 0) * 70ms);
+  }
+
+  /* Everything further down rises gently as it scrolls in. Browsers without this just show it. */
+  @supports (animation-timeline: view()) {
+    .reveal-scroll {
+      animation: rise linear both;
+      animation-range: entry 4% entry 34%;
+      animation-timeline: view();
+    }
+
+    /* The end title's letters come up one after another as it scrolls in. */
+    .end-title-letter {
+      animation: rise linear both;
+      animation-range: entry calc(var(--i, 0) * 3%) entry calc(26% + var(--i, 0) * 3%);
+      animation-timeline: view();
+    }
+  }
+
+  /* Opening a video: the frame itself grows into the player. Closing reverses it. */
+  ::view-transition-group(*) {
+    animation-duration: 560ms;
+    animation-timing-function: var(--ease-settle);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 340ms;
+  }
+
+  ::view-transition-group(video-stage) {
+    z-index: 10;
+  }
+
+  ::view-transition-old(video-stage),
+  ::view-transition-new(video-stage) {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  /* Browsers without view transitions still get a soft fade. */
+  @supports not (view-transition-name: none) {
+    dialog.cinema[open] {
+      animation: lights-up 320ms var(--ease-ui);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms !important;
   }
 }
