@@ -130,13 +130,20 @@ export function VideoUploadPanel({
     if (file && !busy) start(file);
   }
 
+  // The form sits above this panel on a phone, and can push it off a short screen, so the owner is brought here as soon as
+  // anything starts. Otherwise a running upload looks like nothing happening.
+  const sectionRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (state.phase !== "idle") sectionRef.current?.scrollIntoView({ block: "center" });
+  }, [state.phase]);
+
   const percent = percentOf(state.bytesUploaded, state.bytesTotal);
   const showProgress = ["uploading", "paused", "attaching", "cancelling"].includes(state.phase);
   const interrupted =
     state.phase === "idle" && project && !project.video_path && ["uploading", "failed"].includes(project.upload_status);
 
   return (
-    <section aria-labelledby={`${inputId}-title`} className={panelClass}>
+    <section ref={sectionRef} aria-labelledby={`${inputId}-title`} className={panelClass}>
       <h2 id={`${inputId}-title`} className="text-lg font-medium text-bone">
         {project?.video_path ? "Replace the video" : "Video"}
       </h2>

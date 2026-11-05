@@ -31,7 +31,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
 
   return (
     <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <Link href="/admin" className="text-sm text-ash underline underline-offset-4 hover:text-bone">
+      <Link href="/admin" className="inline-flex min-h-11 items-center text-sm text-ash underline underline-offset-4 hover:text-bone">
         All projects
       </Link>
       <h1 dir="auto" className="mt-3 break-words text-3xl font-medium tracking-tight text-bone sm:text-4xl">

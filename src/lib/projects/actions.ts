@@ -2,7 +2,6 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath, updateTag } from "next/cache";
-import { assertAdmin } from "@/lib/auth/admin";
 import type { UploadPlan, UploadTarget } from "@/lib/media/multipart-session";
 import { partCount, partSize } from "@/lib/media/parts";
 import {
@@ -18,9 +17,9 @@ import {
   storedObjectSize,
 } from "@/lib/media/r2";
 import { MAX_VIDEO_BYTES, MAX_VIDEO_MB, VIDEO_MIME, buildObjectName, isUuid, objectBelongsToProject } from "@/lib/media/validation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Project } from "@/types/domain";
 import type { ActionFailure, ActionResult, DuplicateProject, FinalizeVideoInput, PrepareVideoInput } from "./action-types";
+import { asAdmin } from "./as-admin";
 import { PORTFOLIO_TAG } from "./portfolio-tag";
 import { type ProjectInput, parseProjectInput } from "./schema";
 
@@ -29,27 +28,11 @@ const POSTER_BUCKET = "posters";
 const PART_LINK_SECONDS = 24 * 60 * 60;
 const PREVIEW_LINK_SECONDS = 60 * 60;
 
-const SESSION_ENDED = "Your admin session has ended. Please sign in again.";
 const NOT_FOUND = "This project no longer exists. It may have been deleted in another tab.";
 const STORAGE_NOT_CONNECTED = "Video storage is not connected yet, so this cannot be done. The R2 settings need adding to the site.";
 const STORAGE_UNAVAILABLE = "Video storage could not be reached. Please try again in a moment.";
 
 type Supabase = SupabaseClient;
-
-// Every exported action starts here, so nothing runs for anyone but an administrator.
-async function asAdmin<T>(run: (supabase: Supabase) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
-  try {
-    await assertAdmin();
-  } catch {
-    return { ok: false, error: SESSION_ENDED };
-  }
-  try {
-    return await run(await createSupabaseServerClient());
-  } catch (error) {
-    console.error("[admin] action failed:", error instanceof Error ? error.message : error);
-    return { ok: false, error: "Something went wrong. Please try again in a moment." };
-  }
-}
 
 // The public page and the admin both show fresh data straight after any change.
 function refreshEverything() {

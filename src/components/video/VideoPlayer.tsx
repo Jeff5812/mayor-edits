@@ -2,7 +2,8 @@
 
 import { type CSSProperties, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { formatClock, percentOf } from "@/lib/media/format";
-import { PlaybackError, fetchPlaybackUrl } from "@/lib/media/playback";
+import { PlaybackError, fetchPlaybackUrl, fetchSubtitleLanguages } from "@/lib/media/playback";
+import { type SubtitleCode, subtitleLabel } from "@/lib/media/subtitles";
 import type { PublicProject } from "@/types/domain";
 
 type Stage = "idle" | "loading" | "ready" | "error";
@@ -11,6 +12,8 @@ type ErrorKind = "unavailable" | "network" | "unsupported";
 const SEEK_STEP_SECONDS = 5;
 const VOLUME_STEP = 0.1;
 const CONTROLS_HIDE_MS = 3000;
+// Counted up from the bottom of the picture, so subtitles sit clear of the control bar and do not jump when it hides.
+const SUBTITLE_LINE = -4;
 
 const ERROR_TEXT: Record<ErrorKind, { title: string; body: string }> = {
   unavailable: { title: "This cut is not available", body: "It may have been taken down. Please try again later." },
@@ -74,7 +77,35 @@ export function VideoPlayer({ project, autoStart = false }: { project: PublicPro
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [subtitleLanguages, setSubtitleLanguages] = useState<SubtitleCode[]>([]);
+  const [subtitle, setSubtitle] = useState<SubtitleCode | "">("");
   const hintId = useId();
+
+  // The player only exists once a visitor has opened it, so a page view asks for none of this.
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchSubtitleLanguages(project.id, controller.signal).then((languages) => {
+      if (!controller.signal.aborted) setSubtitleLanguages(languages);
+    });
+    return () => controller.abort();
+  }, [project.id]);
+
+  // Only the chosen language's file is downloaded, because the browser fetches a track once it is no longer disabled.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    for (const element of Array.from(video.querySelectorAll("track"))) {
+      // Set once the file arrives, because a line already on screen does not move when its position changes.
+      element.onload = () => {
+        for (const cue of Array.from(element.track.cues ?? [])) {
+          if (cue instanceof VTTCue) cue.line = SUBTITLE_LINE;
+        }
+      };
+    }
+    for (const track of Array.from(video.textTracks)) {
+      track.mode = track.language === subtitle ? "showing" : "disabled";
+    }
+  }, [subtitle, subtitleLanguages]);
 
   const load = useCallback(async () => {
     const video = videoRef.current;
@@ -202,6 +233,8 @@ export function VideoPlayer({ project, autoStart = false }: { project: PublicPro
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     const target = event.target as HTMLElement;
+    // The subtitle list uses the arrow keys and Space for itself.
+    if (target.tagName === "SELECT") return;
     const onButton = target.tagName === "BUTTON";
     const onVolume = target.dataset.control === "volume";
     const onSeek = target.dataset.control === "seek";
@@ -355,7 +388,11 @@ export function VideoPlayer({ project, autoStart = false }: { project: PublicPro
           setMuted(event.currentTarget.muted);
         }}
         onError={onVideoError}
-      />
+      >
+        {subtitleLanguages.map((code) => (
+          <track key={code} kind="subtitles" src={`/api/subtitles/${project.id}/${code}`} srcLang={code} label={subtitleLabel(code)} />
+        ))}
+      </video>
 
       {showSpinner ? (
         <div role="status" className="pointer-events-none absolute inset-0 flex items-center justify-center" data-testid="player-loading">
@@ -432,11 +469,40 @@ export function VideoPlayer({ project, autoStart = false }: { project: PublicPro
             <span data-testid="player-time" className="ms-2 whitespace-nowrap font-time text-xs text-bone">
               {formatClock(time)} / {formatClock(duration)}
             </span>
+            {subtitleLanguages.length > 0 ? (
+              // The browser's own list, so it works by touch, by keyboard and in full screen with nothing to position.
+              <label className={`${controlClass} relative ms-auto cursor-pointer`} title="Subtitles">
+                <span
+                  aria-hidden="true"
+                  className={`rounded-[3px] border border-bone px-1.5 py-0.5 text-xs font-semibold ${subtitle ? "bg-bone text-ink" : "text-bone"}`}
+                >
+                  CC
+                </span>
+                <select
+                  aria-label="Subtitles"
+                  data-testid="player-subtitles"
+                  value={subtitle}
+                  className="absolute inset-0 cursor-pointer opacity-0 [color-scheme:dark]"
+                  onChange={(event) => {
+                    setSubtitle(event.target.value as SubtitleCode | "");
+                    // Back to the player, so Space plays and pauses again.
+                    rootRef.current?.focus();
+                  }}
+                >
+                  <option value="">Off</option>
+                  {subtitleLanguages.map((code) => (
+                    <option key={code} value={code} lang={code}>
+                      {subtitleLabel(code)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <button
               type="button"
               aria-label={fullscreen ? "Exit full screen" : "Full screen"}
               data-testid="player-fullscreen"
-              className={`${controlClass} ms-auto`}
+              className={`${controlClass} ${subtitleLanguages.length > 0 ? "" : "ms-auto"}`}
               onClick={toggleFullscreen}
             >
               <Icon path={fullscreen ? FULLSCREEN_EXIT : FULLSCREEN} />

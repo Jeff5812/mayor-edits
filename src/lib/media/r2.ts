@@ -110,6 +110,21 @@ export async function deleteObject(key: string): Promise<void> {
   if (response.status !== 404) await readOk(response, "delete a file");
 }
 
+// For small text files, such as subtitles. Video goes through the multipart upload instead.
+export async function putTextObject(key: string, text: string, contentType: string): Promise<void> {
+  const { client, bucketUrl } = connect();
+  const response = await client.fetch(objectUrl(bucketUrl, key), { method: "PUT", headers: { "content-type": contentType }, body: text });
+  await readOk(response, "save a file");
+}
+
+// The file's text, or null if there is no such file.
+export async function getTextObject(key: string): Promise<string | null> {
+  const { client, bucketUrl } = connect();
+  const response = await client.fetch(objectUrl(bucketUrl, key));
+  if (response.status === 404) return null;
+  return readOk(response, "read a file");
+}
+
 export async function listObjectKeys(prefix: string): Promise<string[]> {
   const { client, bucketUrl } = connect();
   const url = new URL(bucketUrl);

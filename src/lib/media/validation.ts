@@ -7,8 +7,11 @@ export const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
 export const VIDEO_MIME = "video/mp4";
 export const VIDEO_ACCEPT = "video/mp4,.mp4";
 
-// Each video is one file at one quality, so visitors on slower connections buffer above roughly this.
-const SMOOTH_PLAYBACK_MBPS = 10;
+// Each video is one file at one quality, so its bitrate decides who can watch it smoothly. The balanced setting: warn above
+// this, and suggest the export below. On a connection swinging between 1 and 8 Mbps, 2 Mbps played cleanly, 4 Mbps mostly did
+// and 8 Mbps kept stalling (measured 2026-11-05).
+const SMOOTH_PLAYBACK_MBPS = 5;
+const SUGGESTED_EXPORT = "H.264 MP4 at about 4 Mbps";
 
 // The posters bucket refuses anything over 5 MB (see supabase/migrations).
 export const POSTER_MAX_BYTES = 5 * 1024 * 1024;
@@ -49,7 +52,7 @@ export function validateVideoFile(file: { name: string; type: string; size: numb
     return {
       ok: false,
       code: "size",
-      message: `This file is ${formatBytes(file.size)}, and the limit is ${maxMb} MB per video. Export a shorter cut or a lower-bitrate version (H.264 MP4 at 5 to 8 Mbps works well), then try again.`,
+      message: `This file is ${formatBytes(file.size)}, and the limit is ${maxMb} MB per video. Export a shorter cut or a lower-bitrate version (${SUGGESTED_EXPORT} works well), then try again.`,
     };
   }
 
@@ -64,7 +67,7 @@ export function playbackWarning(sizeBytes: number, durationSeconds: number | nul
   if (durationSeconds <= 0) return null;
   const mbps = (sizeBytes * 8) / durationSeconds / 1_000_000;
   if (mbps <= SMOOTH_PLAYBACK_MBPS) return null;
-  return `This video runs at about ${Math.round(mbps)} Mbps, so visitors on slower connections may see it stop to buffer. An export at 8 Mbps or lower plays more smoothly.`;
+  return `This video runs at about ${Math.round(mbps)} Mbps, so visitors on slower connections may see it stop to buffer. An export as ${SUGGESTED_EXPORT} plays more smoothly.`;
 }
 
 // Top-level atoms a real MP4 can start with.

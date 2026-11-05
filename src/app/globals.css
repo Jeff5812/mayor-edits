@@ -589,6 +589,15 @@
     background-size: 100% 1px;
   }
 
+  /* Subtitles. Scripts the site's font lacks, such as Arabic and Hindi, fall back to the device's own. */
+  video::cue {
+    background: rgb(0 0 0 / 0.72);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: clamp(0.875rem, 1.65vw, 1.5rem);
+    line-height: 1.35;
+  }
+
   /* The cinema: the dialog is lit by its own video's poster. */
   .cinema-light {
     filter: blur(80px) saturate(1.25);

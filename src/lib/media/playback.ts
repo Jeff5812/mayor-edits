@@ -1,4 +1,6 @@
 // Browser side of /api/playback/[id]. Nothing calls this until a visitor asks to watch.
+import { type SubtitleCode, isSubtitleCode } from "./subtitles";
+
 export type PlaybackFailure = "unavailable" | "network";
 
 export class PlaybackError extends Error {
@@ -22,4 +24,18 @@ export async function fetchPlaybackUrl(projectId: string, signal?: AbortSignal):
   const url = (body as { url?: unknown } | null)?.url;
   if (typeof url !== "string" || !url) throw new PlaybackError("unavailable");
   return url;
+}
+
+// Which languages this video has subtitles in. Separate from the video's link, so any fault here costs the visitor the
+// subtitle button and never the video.
+export async function fetchSubtitleLanguages(projectId: string, signal?: AbortSignal): Promise<SubtitleCode[]> {
+  try {
+    const response = await fetch(`/api/subtitles/${encodeURIComponent(projectId)}`, { signal });
+    if (!response.ok) return [];
+    const body: unknown = await response.json();
+    const languages = (body as { languages?: unknown } | null)?.languages;
+    return Array.isArray(languages) ? languages.filter((code): code is SubtitleCode => typeof code === "string" && isSubtitleCode(code)) : [];
+  } catch {
+    return [];
+  }
 }

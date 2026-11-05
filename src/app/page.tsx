@@ -66,7 +66,7 @@ export default async function Home() {
       <footer>
         <div className="page-shell flex items-center justify-between gap-4 py-6 text-sm text-mute">
           <span>{SITE.name}</span>
-          <a href="#top" className="text-ash hover:text-bone">
+          <a href="#top" className="inline-flex min-h-11 items-center text-ash hover:text-bone">
             <span className="link-draw">Back to top</span>
           </a>
         </div>

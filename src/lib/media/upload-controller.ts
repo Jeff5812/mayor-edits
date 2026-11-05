@@ -74,6 +74,8 @@ export interface UploadControllerOptions {
 }
 
 const SPEED_SAMPLE_MS = 500;
+// A connection's first seconds are slow and say little about the rest, so no time is promised until these have passed.
+const ESTIMATE_AFTER_MS = 6000;
 
 async function canStillRead(file: Blob): Promise<boolean> {
   try {
@@ -91,6 +93,7 @@ export class UploadController {
   private file: File | null = null;
   private fingerprint = "";
   private durationSeconds: number | null = null;
+  private sendingSince: number | null = null;
   private lastSampleAt = 0;
   private lastSampleBytes = 0;
   // Bumped by cancel and by each new file, so a late answer from an older attempt is ignored.
@@ -192,8 +195,7 @@ export class UploadController {
     const attempt = this.attempt;
     const create = this.options.createSession ?? ((options: MultipartSessionOptions) => new MultipartSession(options));
 
-    this.lastSampleAt = performance.now();
-    this.lastSampleBytes = 0;
+    this.sendingSince = null;
     this.set({ phase: "uploading", bytesUploaded: 0, bytesPerSecond: null, secondsLeft: null, error: null, canRetry: false });
 
     const session = create({
@@ -218,9 +220,16 @@ export class UploadController {
   }
 
   private recordProgress(uploaded: number, total: number) {
+    const now = performance.now();
+    // Preparing is not sending, so the clock starts with the first report. That report also carries whatever an
+    // earlier attempt delivered, which this one did not send.
+    if (this.sendingSince === null) {
+      this.sendingSince = now;
+      this.lastSampleAt = now;
+      this.lastSampleBytes = uploaded;
+    }
     // Resuming restarts from what storage confirmed, which can be lower than the bar had reached.
     // The speed only counts bytes moving forward, so that step back does not distort the estimate.
-    const now = performance.now();
     const elapsed = now - this.lastSampleAt;
     let speed = this.state.bytesPerSecond;
     if (elapsed >= SPEED_SAMPLE_MS) {
@@ -233,7 +242,7 @@ export class UploadController {
       bytesUploaded: uploaded,
       bytesTotal: total,
       bytesPerSecond: speed,
-      secondsLeft: remainingSeconds(uploaded, total, speed),
+      secondsLeft: now - this.sendingSince >= ESTIMATE_AFTER_MS ? remainingSeconds(uploaded, total, speed) : null,
     });
   }
 
@@ -306,8 +315,7 @@ export class UploadController {
 
   resume() {
     if (this.state.phase !== "paused" || !this.session) return;
-    this.lastSampleAt = performance.now();
-    this.lastSampleBytes = this.state.bytesUploaded;
+    this.sendingSince = null;
     this.set({ phase: "uploading", error: null });
     this.session.resume();
   }
@@ -319,9 +327,8 @@ export class UploadController {
       void this.attach();
       return;
     }
-    this.lastSampleAt = performance.now();
-    this.lastSampleBytes = this.state.bytesUploaded;
-    this.set({ phase: "uploading", error: null, canRetry: false });
+    this.sendingSince = null;
+    this.set({ phase: "uploading", bytesPerSecond: null, secondsLeft: null, error: null, canRetry: false });
     this.session.resume();
   }
 

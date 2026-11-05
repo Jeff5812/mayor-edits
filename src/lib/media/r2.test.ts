@@ -4,9 +4,11 @@ import {
   completeMultipartUpload,
   createMultipartUpload,
   deleteObject,
+  getTextObject,
   isR2Configured,
   listObjectKeys,
   listUploadedParts,
+  putTextObject,
   signGetUrl,
   signPartUrl,
   storedObjectSize,
@@ -111,6 +113,28 @@ describe("finishing an upload", () => {
   it("notices a failure reported inside a 200 answer", async () => {
     reply = () => new Response("<Error><Code>InternalError</Code></Error>");
     await expect(completeMultipartUpload(KEY, "abc123", parts)).rejects.toThrow(/InternalError/);
+  });
+});
+
+describe("small text files", () => {
+  it("saves text in any script, with its type", async () => {
+    await putTextObject("p/subtitles/ar.vtt", "WEBVTT\n\nمرحبا\n", "text/vtt; charset=utf-8");
+    expect(requests[0].method).toBe("PUT");
+    expect(requests[0].url).toBe(`${BUCKET_URL}/p/subtitles/ar.vtt`);
+    expect(requests[0].headers.get("content-type")).toBe("text/vtt; charset=utf-8");
+    expect(await requests[0].text()).toBe("WEBVTT\n\nمرحبا\n");
+  });
+
+  it("reports a failed save", async () => {
+    reply = () => new Response("<Error><Code>AccessDenied</Code></Error>", { status: 403 });
+    await expect(putTextObject("p/a.vtt", "x", "text/vtt")).rejects.toThrow(/AccessDenied/);
+  });
+
+  it("reads text back, or null if there is no such file", async () => {
+    reply = () => new Response("WEBVTT\n\nمرحبا\n");
+    expect(await getTextObject("p/subtitles/ar.vtt")).toBe("WEBVTT\n\nمرحبا\n");
+    reply = () => new Response(null, { status: 404 });
+    expect(await getTextObject("p/subtitles/ar.vtt")).toBeNull();
   });
 });
 

@@ -50,14 +50,16 @@ describe("validateVideoFile", () => {
 });
 
 describe("playbackWarning", () => {
-  it("stays quiet at a bitrate that plays smoothly", () => {
-    // 100 MB over 2 minutes is under 7 Mbps.
-    expect(playbackWarning(100_000_000, 120)).toBeNull();
+  it("stays quiet at a balanced bitrate", () => {
+    // 60 MB over 2 minutes is 4 Mbps.
+    expect(playbackWarning(60_000_000, 120)).toBeNull();
   });
 
-  it("warns above it, with the real number", () => {
+  it("warns above it, with the real number and what to export instead", () => {
     // 500 MB over 3 minutes is about 22 Mbps.
     expect(playbackWarning(500_000_000, 180)).toMatch(/22 Mbps/);
+    // 100 MB over 2 minutes is about 7 Mbps, which stalled on a slow connection.
+    expect(playbackWarning(100_000_000, 120)).toMatch(/about 4 Mbps/);
   });
 
   it("warns when the browser could not read the video at all", () => {

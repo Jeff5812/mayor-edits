@@ -15,6 +15,13 @@ interface PublicProjectRow extends Omit<PublicProject, "poster_url"> {
   poster_path: string | null;
 }
 
+// For the routes that serve a project's extras. RLS exposes only published rows, so unpublishing stops them at once.
+export async function isPublishedProject(id: string): Promise<boolean> {
+  const { data, error } = await createSupabasePublicClient().from("projects").select("id").eq("id", id).eq("status", "published").maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+}
+
 // Rejects on failure, so an outage shows an error state and never an empty portfolio. Cached until an
 // admin change expires the tag, which also means ordinary visits never touch the database.
 export async function getPublishedProjects(): Promise<PublicProject[]> {

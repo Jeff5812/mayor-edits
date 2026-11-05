@@ -36,6 +36,7 @@ import {
   smallButtonClass,
   successClass,
 } from "./styles";
+import { SubtitlesPanel } from "./SubtitlesPanel";
 import { VideoUploadPanel } from "./VideoUploadPanel";
 
 // Suggestions only: the owner can type any category without a developer changing anything.
@@ -435,7 +436,8 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
           </p>
         ) : null}
 
-        <div>
+        {/* Stays in view on short screens, where the form runs past the bottom of the window or dialog. */}
+        <div className="sticky bottom-0 z-10 -mx-5 -mb-5 rounded-b-[4px] border-t border-line bg-[var(--surface-1)] px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
           <button type="submit" disabled={saving || checkingVideo} className={primaryButtonClass}>
             {saving ? "Saving" : project ? "Save details" : newVideo ? "Create draft and upload" : "Create draft"}
           </button>
@@ -454,7 +456,7 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
                   {publishing ? "Working" : project.status === "published" ? "Unpublish" : "Publish"}
                 </button>
                 {project.status === "published" ? (
-                  <a href="/#work" target="_blank" rel="noreferrer" className="text-sm text-bone underline underline-offset-4">
+                  <a href="/#work" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm text-bone underline underline-offset-4">
                     View on the site<span className="sr-only"> (opens in a new tab)</span>
                   </a>
                 ) : null}
@@ -474,6 +476,7 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
               onFile={setLocalVideo}
             />
             <PosterPanel project={project} localVideo={localVideo} onProject={setProject} />
+            <SubtitlesPanel projectId={project.id} />
           </>
         ) : (
           <p className={noticeClass}>The poster and publishing controls appear once the draft is created.</p>

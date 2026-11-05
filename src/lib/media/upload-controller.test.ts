@@ -189,6 +189,39 @@ describe("while uploading", () => {
     expect(controller.isBusy).toBe(true);
   });
 
+  it("waits for real sending before estimating, so a slow start cannot promise hours", async () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+    const { controller, session } = await uploading();
+    // Preparing took half a minute, and the first bytes have only just gone.
+    clock.mockReturnValue(30_000);
+    session.options.onProgress(1_000, 100_000_000);
+    expect(controller.current.secondsLeft).toBeNull();
+    clock.mockReturnValue(33_000);
+    session.options.onProgress(3_001_000, 100_000_000);
+    expect(controller.current.secondsLeft).toBeNull();
+    clock.mockReturnValue(37_000);
+    session.options.onProgress(7_001_000, 100_000_000);
+    // A megabyte a second, with 93 MB to go.
+    expect(controller.current.secondsLeft).toBeCloseTo(93, 0);
+    clock.mockRestore();
+  });
+
+  it("does not count what an earlier attempt delivered as speed", async () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+    const { controller, session } = await uploading();
+    await controller.pause();
+    controller.resume();
+    // Half arrived before the pause, and storage confirms it in the first report.
+    clock.mockReturnValue(10_000);
+    session.options.onProgress(50_000_000, 100_000_000);
+    expect(controller.current.bytesPerSecond).toBeNull();
+    clock.mockReturnValue(20_000);
+    session.options.onProgress(60_000_000, 100_000_000);
+    expect(controller.current.bytesPerSecond).toBe(1_000_000);
+    expect(controller.current.secondsLeft).toBe(40);
+    clock.mockRestore();
+  });
+
   it("pauses and resumes the same session", async () => {
     const { controller, session } = await uploading();
     await controller.pause();

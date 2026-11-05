@@ -142,6 +142,50 @@ test("details can be edited, and the change reaches the public page", async ({ p
   await visitor.close();
 });
 
+test("the owner adds subtitles in any script, and a visitor can turn them on", async ({ page }) => {
+  await signIn(page);
+  await open(page, `/admin/projects/${projectId}`);
+  const panel = page.getByTestId("subtitles-panel");
+  const srt = (text: string) => ({ name: "clip.srt", mimeType: "application/x-subrip", buffer: Buffer.from(`1\n00:00:00,000 --> 00:00:29,000\n${text}\n`) });
+
+  await panel.getByTestId("subtitle-input").setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not subtitles") });
+  await expect(panel.getByRole("alert")).toContainText("no timed lines");
+
+  await panel.getByLabel("Language").selectOption("es");
+  await panel.getByTestId("subtitle-input").setInputFiles(srt("Hola, esto es una prueba."));
+  await expect(panel.getByRole("status")).toContainText("Español subtitles saved");
+  await panel.getByLabel("Language").selectOption("ar");
+  await panel.getByTestId("subtitle-input").setInputFiles(srt("مرحبا، هذا اختبار."));
+  await expect(panel.getByRole("status")).toContainText("العربية subtitles saved");
+
+  const visitor = await page.context().browser()!.newContext();
+  const visitorPage = await visitor.newPage();
+  const subtitleFiles: string[] = [];
+  visitorPage.on("request", (request) => {
+    if (request.url().endsWith(".vtt") || /\/api\/subtitles\/[^/]+\/[a-z]+$/.test(request.url())) subtitleFiles.push(request.url().split("/").pop() as string);
+  });
+  await open(visitorPage, "/");
+  await visitorPage.getByTestId("public-project").filter({ hasText: title }).getByTestId("card-play").click();
+  const choice = visitorPage.getByTestId("player-subtitles");
+  await expect(choice).toBeAttached({ timeout: 60_000 });
+  await expect(choice.locator("option")).toHaveText(["Off", "Español", "العربية"]);
+  // Off by default, and nothing is downloaded until a language is chosen.
+  expect(subtitleFiles).toEqual([]);
+
+  await choice.selectOption("ar");
+  const cueText = () =>
+    visitorPage.getByTestId("video-element").evaluate((video: HTMLVideoElement) => {
+      const track = Array.from(video.textTracks).find((candidate) => candidate.mode === "showing");
+      return (track?.cues?.[0] as VTTCue | undefined)?.text ?? null;
+    });
+  await expect.poll(cueText, { timeout: 30_000 }).toBe("مرحبا، هذا اختبار.");
+  expect(subtitleFiles).toEqual(["ar"]);
+
+  await choice.selectOption("");
+  await expect.poll(cueText).toBeNull();
+  await visitor.close();
+});
+
 test("unpublishing removes it from the page and stops new video links", async ({ page }) => {
   await signIn(page);
   await open(page, `/admin/projects/${projectId}`);
@@ -153,6 +197,8 @@ test("unpublishing removes it from the page and stops new video links", async ({
   await visitorPage.goto("/");
   await expect(visitorPage.getByText(title)).toHaveCount(0);
   expect((await visitor.request.get(`/api/playback/${projectId}`)).status()).toBe(404);
+  expect(await (await visitor.request.get(`/api/subtitles/${projectId}`)).json()).toEqual({ languages: [] });
+  expect((await visitor.request.get(`/api/subtitles/${projectId}/es`)).status()).toBe(404);
   await visitor.close();
 });
 

@@ -67,6 +67,15 @@ that catch the light. Everything moving is transform or opacity, and all of it s
 - **Migrations.** The Supabase connector declines destructive SQL, so those are run by a person in the SQL Editor.
 - **Test footage** must be generated. The owner's `Videos` folder holds personal files, and stock sites forbid scripted access.
 
+## Subtitles
+
+A video can have one WebVTT file per language, stored beside it in R2 at `<project-id>/subtitles/<language>.vtt`, so deleting a
+project removes them with its folder and no database change was needed. The owner adds a `.srt` or `.vtt` on the project page
+([SubtitlesPanel](../src/components/admin/SubtitlesPanel.tsx)). The player asks `/api/subtitles/[id]` which languages exist and
+offers them, off by default, and only the chosen language's file downloads. Those files come through
+`/api/subtitles/[id]/[lang]` on the site's own address, because a browser will not load a subtitle track from another address
+unless the video asks for permission too. Both routes answer only for published projects.
+
 ## Tests
 
 `npm run test:unit` covers the upload logic with stand-ins for R2. `npm run test:e2e` runs
