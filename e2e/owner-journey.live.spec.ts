@@ -106,9 +106,16 @@ test("a published video appears at once and really plays, including after a seek
   // The public page never says where a video is stored. Posters are public and do sit under the project's id.
   const html = await visitorPage.content();
   for (const location of [".mp4", "video_path", "r2.cloudflarestorage.com"]) expect(html).not.toContain(location);
-  // A video's size cannot slow the page down, because nothing is downloaded until someone presses play.
+  // A video's size cannot slow the page down, because nothing is downloaded until someone points at it or presses play.
   expect(videoRequests).toEqual([]);
 
+  // Pointing at a card plays a few silent seconds.
+  await card.getByTestId("card-play").hover();
+  const preview = card.getByTestId("card-preview");
+  await expect.poll(() => preview.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 60_000 }).toBeGreaterThan(0);
+  expect(await preview.evaluate((v: HTMLVideoElement) => v.muted)).toBe(true);
+
+  // Pressing play starts it right there in the card.
   await card.getByTestId("card-play").click();
   const video = visitorPage.getByTestId("video-element");
   await expect(visitorPage.getByTestId("player-controls")).toBeAttached({ timeout: 60_000 });
@@ -125,6 +132,14 @@ test("a published video appears at once and really plays, including after a seek
   });
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 60_000 }).toBeGreaterThan(duration * 0.75);
   await expect(visitorPage.getByTestId("player-error")).toHaveCount(0);
+
+  // A full size option, and the way back.
+  await visitorPage.getByTestId("video-player").hover();
+  await visitorPage.getByTestId("player-fullscreen").click();
+  const inFullscreen = () => visitorPage.evaluate(() => document.fullscreenElement?.getAttribute("data-testid") ?? null);
+  await expect.poll(inFullscreen).toBe("video-player");
+  await visitorPage.evaluate(() => document.exitFullscreen());
+  await expect.poll(inFullscreen).toBeNull();
   await visitor.close();
 });
 
@@ -166,23 +181,34 @@ test("the owner adds subtitles in any script, and a visitor can turn them on", a
   });
   await open(visitorPage, "/");
   await visitorPage.getByTestId("public-project").filter({ hasText: title }).getByTestId("card-play").click();
-  const choice = visitorPage.getByTestId("player-subtitles");
-  await expect(choice).toBeAttached({ timeout: 60_000 });
-  await expect(choice.locator("option")).toHaveText(["Off", "Español", "العربية"]);
+  const button = visitorPage.getByTestId("player-subtitles");
+  await expect(button).toBeAttached({ timeout: 60_000 });
+  // Held still, so the controls stay up while the menu is used.
+  await visitorPage.getByTestId("video-element").evaluate((video: HTMLVideoElement) => video.pause());
+  await button.click();
+  const menu = visitorPage.getByTestId("player-subtitles-menu");
+  await expect(menu.getByRole("menuitemradio")).toHaveText(["Off", "Español", "العربية"]);
   // Off by default, and nothing is downloaded until a language is chosen.
   expect(subtitleFiles).toEqual([]);
 
-  await choice.selectOption("ar");
-  const cueText = () =>
-    visitorPage.getByTestId("video-element").evaluate((video: HTMLVideoElement) => {
-      const track = Array.from(video.textTracks).find((candidate) => candidate.mode === "showing");
-      return (track?.cues?.[0] as VTTCue | undefined)?.text ?? null;
-    });
-  await expect.poll(cueText, { timeout: 30_000 }).toBe("مرحبا، هذا اختبار.");
+  await menu.getByRole("menuitemradio", { name: "العربية" }).click();
+  const shown = visitorPage.getByTestId("player-subtitle");
+  await expect(shown).toHaveText("مرحبا، هذا اختبار.", { timeout: 30_000 });
   expect(subtitleFiles).toEqual(["ar"]);
 
-  await choice.selectOption("");
-  await expect.poll(cueText).toBeNull();
+  // A file that fails the first time is asked for again by itself, because a browser would otherwise never retry it.
+  let refusals = 1;
+  await visitorPage.route(/\/api\/subtitles\/[^/]+\/es$/, async (route) => {
+    if (refusals-- > 0) await route.fulfill({ status: 503, body: "" });
+    else await route.continue();
+  });
+  await button.click();
+  await menu.getByRole("menuitemradio", { name: "Español" }).click();
+  await expect(shown).toHaveText("Hola, esto es una prueba.", { timeout: 30_000 });
+
+  await button.click();
+  await menu.getByRole("menuitemradio", { name: "Off" }).click();
+  await expect(shown).toHaveCount(0);
   await visitor.close();
 });
 

@@ -43,7 +43,8 @@ export function OwnerUploadButton() {
         <svg viewBox="0 0 16 16" aria-hidden="true" className="size-4 fill-none stroke-current stroke-[1.75]">
           <path d="M8 11V2.500M4.500 6 8 2.500 11.500 6M2.500 13.500h11" />
         </svg>
-        Upload a video
+        {/* Just the arrow where a frame is too small for the words. */}
+        <span className="sr-only @[13rem]:not-sr-only">Upload a video</span>
       </button>
     </div>
   );

@@ -39,9 +39,6 @@ import {
 import { SubtitlesPanel } from "./SubtitlesPanel";
 import { VideoUploadPanel } from "./VideoUploadPanel";
 
-// Suggestions only: the owner can type any category without a developer changing anything.
-const CATEGORY_SUGGESTIONS = ["Brand", "Short form", "Long form", "Documentary", "Narrative", "Music video"];
-
 interface FormValues {
   title: string;
   description: string;
@@ -169,7 +166,6 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
 
   const idPrefix = useId();
   const id = (name: string) => `${idPrefix}-${name}`;
-  const suggestionsId = id("category-suggestions");
 
   function change<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((previous) => ({ ...previous, [key]: value }));
@@ -325,18 +321,12 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
               name="category"
               required
               maxLength={60}
-              list={suggestionsId}
               value={values.category}
               aria-invalid={Boolean(errors.category)}
               aria-describedby={describedBy(id("category"), false, errors.category)}
               className={inputClass}
               onChange={(event) => change("category", event.target.value)}
             />
-            <datalist id={suggestionsId}>
-              {CATEGORY_SUGGESTIONS.map((category) => (
-                <option key={category} value={category} />
-              ))}
-            </datalist>
           </Field>
           <Field id={id("language")} label="Language (optional)" hint="The language spoken in the video." error={errors.language}>
             <input

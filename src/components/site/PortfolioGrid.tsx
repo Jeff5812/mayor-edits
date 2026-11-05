@@ -1,39 +1,28 @@
 import type { CSSProperties, ReactNode } from "react";
-import { VideoDialog } from "@/components/video/VideoDialog";
+import { CardPlayer } from "@/components/video/CardPlayer";
 import { formatClock } from "@/lib/media/format";
 import type { PublicProject } from "@/types/domain";
 import { BrandMark } from "./BrandMark";
 import { OwnerEditLink, OwnerOnly, OwnerUploadButton, OwnerUploadDialog } from "./OwnerControls";
 
-// The reel always shows at least this many frames: the lead and a row of three. Positions without a video show
-// the default frame and no text, and the signed-in owner can hover one to upload.
-const MIN_SLOTS = 4;
+// The reel always shows at least this many frames: the lead beside the headline, then two even rows of three.
+// Positions without a video show the default frame and no text, and the signed-in owner can hover one to upload.
+const MIN_SLOTS = 7;
+const ROW = 3;
 
-type Slot = "first" | "bigLeft" | "bigRight" | "stack" | "third" | "half";
+type Slot = "first" | "third";
 
 const SLOT_CLASS: Record<Slot, string> = {
-  first: "sm:col-span-2 lg:col-span-4",
-  bigLeft: "sm:col-span-2 lg:col-span-4 lg:row-span-2",
-  bigRight: "sm:col-span-2 lg:col-span-4 lg:col-start-3 lg:row-span-2",
-  stack: "lg:col-span-2",
-  third: "lg:col-span-2",
-  half: "lg:col-span-3",
+  first: "col-span-2 lg:col-span-4",
+  third: "col-span-2 sm:col-span-1 lg:col-span-2",
 };
+// A frame with nothing to show takes half the width on a phone, so a new reel is not a long scroll past empty frames.
+const EMPTY_SLOT_CLASS: Record<Slot, string> = { ...SLOT_CLASS, third: "col-span-1 lg:col-span-2" };
 
-const LARGE: Slot[] = ["first", "bigLeft", "bigRight"];
-
-// The work is hung as a composition, not a grid of equal boxes: the lead beside the headline, three across, then
-// a large frame with two stacked beside it, alternating sides. A leftover project stays an ordinary card.
-function slotsFor(count: number): Slot[] {
-  const slots: Slot[] = ["first"];
-  for (let group = 0; slots.length < count; group += 1) {
-    const left = count - slots.length;
-    if (left === 1) slots.push("third");
-    else if (left === 2) slots.push("half", "half");
-    else if (group % 2 === 0) slots.push("third", "third", "third");
-    else slots.push(group % 4 === 1 ? "bigRight" : "bigLeft", "stack", "stack");
-  }
-  return slots;
+// Rows are always completed with default frames, so the reel never ends in a gap.
+function slotsFor(projects: number): Slot[] {
+  const rows = Math.ceil((Math.max(projects, MIN_SLOTS) - 1) / ROW);
+  return ["first", ...Array.from({ length: rows * ROW }, (): Slot => "third")];
 }
 
 function revealClass(order: number) {
@@ -57,22 +46,16 @@ function DefaultFrame() {
   );
 }
 
-function PlayMark() {
-  return (
-    <span aria-hidden="true" className="frame-play btn-primary">
-      <svg viewBox="0 0 20 20" className="size-3.5 fill-current">
-        <path d="M5 3 L17 10 L5 17 Z" />
-      </svg>
-      <span className="frame-play-label">Play</span>
-    </span>
-  );
-}
-
 // A position in the reel with no video yet: only the default frame, with no name or running time to invent.
 function EmptySlot({ slot, order }: { slot: Slot; order: number }) {
   return (
-    <div data-empty style={{ "--order": order } as CSSProperties} className={`card plate relative isolate p-1.5 sm:p-2 ${SLOT_CLASS[slot]} ${revealClass(order)}`}>
-      <div className="relative aspect-video w-full">
+    <div
+      data-empty
+      data-pair={slot === "third" ? "" : undefined}
+      style={{ "--order": order } as CSSProperties}
+      className={`card plate relative isolate p-1.5 sm:p-2 ${EMPTY_SLOT_CLASS[slot]} ${revealClass(order)}`}
+    >
+      <div className="frame-stage relative aspect-video w-full">
         <div className="frame-inner">
           <DefaultFrame />
           {/* An empty screen still runs: a slow light leak, and a film leader's sweep. */}
@@ -87,7 +70,7 @@ function EmptySlot({ slot, order }: { slot: Slot; order: number }) {
 }
 
 function ProjectCard({ project, slot, order }: { project: PublicProject; slot: Slot; order: number }) {
-  const large = LARGE.includes(slot);
+  const large = slot === "first";
   const details = [project.category, project.language].filter(Boolean).join(" · ");
   return (
     <article
@@ -99,8 +82,8 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
         // eslint-disable-next-line @next/next/no-img-element
         <img src={project.poster_url} alt="" aria-hidden="true" loading="lazy" decoding="async" className="card-glow" />
       ) : null}
-      <div className="relative aspect-video w-full">
-        <div data-frame-inner className="frame-inner">
+      <div className="frame-stage relative aspect-video w-full">
+        <div className="frame-inner">
           <DefaultFrame />
           {project.poster_url ? (
             // Posters are sized when they are uploaded, so nothing downstream needs to re-encode them.
@@ -115,9 +98,8 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
             />
           ) : null}
           <div className="frame-shade" />
-          <span className="scrub" />
-          <PlayMark />
         </div>
+        <CardPlayer project={project} />
       </div>
       <div className="grid gap-1 px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2">
         <div className="flex items-baseline justify-between gap-4">
@@ -133,16 +115,15 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
         {details ? <p className="text-sm leading-5 text-mute transition-colors duration-200 [.card:hover_&]:text-ash">{details}</p> : null}
         {large && project.description ? <p className="mt-1 line-clamp-2 max-w-[62ch] text-sm leading-relaxed text-mute">{project.description}</p> : null}
       </div>
-      <VideoDialog project={project} />
       <OwnerEditLink projectId={project.id} />
     </article>
   );
 }
 
 export function PortfolioGrid({ projects, children }: { projects: PublicProject[]; children: ReactNode }) {
-  const slots = slotsFor(Math.max(projects.length, MIN_SLOTS));
+  const slots = slotsFor(projects.length);
   return (
-    <div className="grid items-start gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-6 lg:gap-x-6 lg:gap-y-7 lg:[grid-auto-flow:dense]">
+    <div className="grid grid-cols-2 items-start gap-4 sm:gap-5 lg:grid-cols-6 lg:gap-6">
       {children}
       {slots.map((slot, index) =>
         projects[index] ? (
@@ -152,7 +133,7 @@ export function PortfolioGrid({ projects, children }: { projects: PublicProject[
         ),
       )}
       {/* When every position is taken, the owner still gets one more to upload into. Visitors never see it. */}
-      {projects.length >= MIN_SLOTS ? (
+      {projects.length >= slots.length ? (
         <OwnerOnly>
           <EmptySlot slot="third" order={slots.length} />
         </OwnerOnly>
