@@ -8,7 +8,7 @@ import { posterUrl } from "@/lib/media/poster-url";
 import { POSTER_ACCEPT, POSTER_MAX_BYTES, VIDEO_ACCEPT, validatePosterFile } from "@/lib/media/validation";
 import { removeProjectPoster } from "@/lib/projects/actions";
 import type { Project } from "@/types/domain";
-import { alertClass, panelClass, primaryButtonClass, smallButtonClass, successClass } from "./styles";
+import { alertClass, panelClass, panelHintClass, panelTitleClass, primaryButtonClass, smallButtonClass, successClass } from "./styles";
 
 const CANNOT_DECODE = "This browser cannot read frames from this video, so please upload a poster image instead.";
 
@@ -97,56 +97,56 @@ export function PosterPanel({
 
   return (
     <section aria-labelledby={titleId} className={panelClass}>
-      <h2 id={titleId} className="text-lg font-medium text-bone">
+      <h2 id={titleId} className={panelTitleClass}>
         Poster
       </h2>
-      <p className="mt-2 text-sm text-ash">
-        Shown on the project&apos;s card. A frame from the video is saved automatically after an upload, and you can replace it here.
-      </p>
+      <p className={panelHintClass}>Shown on the project&apos;s card. A frame from the video is saved automatically after an upload.</p>
 
-      {current ? (
-        // eslint-disable-next-line @next/next/no-img-element -- admin preview of a public storage image
-        <img src={current} alt="Current poster" className="mt-4 aspect-video w-64 max-w-full border border-line object-cover" />
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap gap-3">
-        <input
-          ref={imageInput}
-          type="file"
-          accept={POSTER_ACCEPT}
-          aria-label="Poster image file"
-          data-testid="poster-input"
-          className="sr-only"
-          tabIndex={-1}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) chooseImage(file);
-          }}
-        />
-        <button type="button" className={smallButtonClass} disabled={Boolean(busy)} onClick={() => imageInput.current?.click()}>
-          Upload an image
-        </button>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
         {current ? (
-          <button
-            type="button"
-            className={smallButtonClass}
-            disabled={Boolean(busy)}
-            onClick={() =>
-              void run("Removing the poster", async () => {
-                const result = await removeProjectPoster(project.id);
-                if (!result.ok) {
-                  setError(result.error);
-                  return;
-                }
-                onProject(result.data);
-                setMessage("Poster removed.");
-              })
-            }
-          >
-            Remove poster
-          </button>
+          // eslint-disable-next-line @next/next/no-img-element -- admin preview of a public storage image
+          <img src={current} alt="Current poster" className="aspect-video w-36 rounded-[2px] object-cover shadow-[0_0_0_1px_rgb(0_0_0/0.55)]" />
         ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={imageInput}
+            type="file"
+            accept={POSTER_ACCEPT}
+            aria-label="Poster image file"
+            data-testid="poster-input"
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) chooseImage(file);
+            }}
+          />
+          <button type="button" className={smallButtonClass} disabled={Boolean(busy)} onClick={() => imageInput.current?.click()}>
+            Upload an image
+          </button>
+          {current ? (
+            <button
+              type="button"
+              className={smallButtonClass}
+              disabled={Boolean(busy)}
+              onClick={() =>
+                void run("Removing the poster", async () => {
+                  const result = await removeProjectPoster(project.id);
+                  if (!result.ok) {
+                    setError(result.error);
+                    return;
+                  }
+                  onProject(result.data);
+                  setMessage("Poster removed.");
+                })
+              }
+            >
+              Remove poster
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-5 border-t border-line pt-5">
@@ -161,7 +161,7 @@ export function PosterPanel({
                 step={1}
                 value={frameAt}
                 onChange={(event) => setFrameAt(Math.max(0, Number(event.target.value) || 0))}
-                className="ms-3 w-24 border border-line-strong bg-ink px-2 py-1 text-bone"
+                className="ms-3 min-h-11 w-24 rounded-[3px] border border-line-strong bg-ink px-3 py-2 text-base text-bone shadow-[inset_0_2px_5px_rgb(0_0_0/0.6)] focus-visible:border-bone"
               />
             </label>
             <div>
@@ -198,7 +198,7 @@ export function PosterPanel({
         {frame ? (
           <div className="mt-4 grid gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element -- local preview from an object URL */}
-            <img src={frame.url} alt="Chosen frame" className="w-full max-w-sm border border-line" />
+            <img src={frame.url} alt="Chosen frame" className="w-full rounded-[2px] shadow-[0_0_0_1px_rgb(0_0_0/0.55)]" />
             <div>
               <button
                 type="button"

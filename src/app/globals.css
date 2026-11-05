@@ -569,7 +569,9 @@
      The white state lives here too, because a phone keeps a tapped button in :hover until the next tap somewhere else. */
   @media (hover: hover) {
     button:hover > .play-disc,
-    button:focus-visible > .play-disc {
+    a:hover > .play-disc,
+    button:focus-visible > .play-disc,
+    a:focus-visible > .play-disc {
       background: #fff;
       box-shadow:
         0 0 0 6px rgb(255 255 255 / 0.14),
@@ -1127,8 +1129,8 @@
     }
   }
 
-  /* The Contact us menu: a raised plate that drops from the button. */
-  .contact-menu {
+  /* A menu in the header bar: a raised plate that drops from its button. */
+  .header-menu {
     color: var(--text-1);
     inline-size: min(21rem, calc(100vw - 2 * var(--gutter)));
     inset: auto;
@@ -1146,7 +1148,7 @@
     translate: 0 -8px;
   }
 
-  .contact-menu:popover-open {
+  .header-menu:popover-open {
     display: grid;
     gap: 0.25rem;
     opacity: 1;
@@ -1154,22 +1156,133 @@
   }
 
   @starting-style {
-    .contact-menu:popover-open {
+    .header-menu:popover-open {
       opacity: 0;
       translate: 0 -8px;
     }
   }
 
-  .contact-chevron {
+  .header-menu-chevron {
     transition: rotate 300ms var(--ease-settle), translate 300ms var(--ease-settle);
   }
 
-  .contact-trigger:hover .contact-chevron {
+  .header-menu-trigger:hover .header-menu-chevron {
     translate: 0 1px;
   }
 
-  .contact-trigger:has(+ .contact-menu:popover-open) .contact-chevron {
+  .header-menu-trigger:has(+ .header-menu:popover-open) .header-menu-chevron {
     rotate: 180deg;
+  }
+
+  /* The admin's own pieces. The cards, frames and buttons around them are the public site's, so the two stay one design. */
+
+  /* The reel at a glance: one instrument, ruled into cells. Each cell draws its own top and left line, and the plate
+     clips the ones on its outer edge, so the rules come out right however the cells wrap. */
+  .readout {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  .readout-cell {
+    box-shadow: -1px 0 0 var(--line-2), 0 -1px 0 var(--line-2);
+    min-inline-size: 0;
+    padding: 0.875rem 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .readout-cell {
+      padding: 1.125rem 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .readout {
+      grid-template-columns: 1fr 1fr 1fr 2.4fr;
+    }
+  }
+
+  /* A length of timeline: fine ticks with a taller one every fifth, filling from the left up to a playhead. Storage
+     and upload progress read the same way, and a tiny amount still looks like a position, not a broken bar. */
+  .meter {
+    background:
+      repeating-linear-gradient(to right, rgb(255 255 255 / 0.26) 0 1px, transparent 1px 50px) 0 100% / 100% 100% no-repeat,
+      repeating-linear-gradient(to right, rgb(255 255 255 / 0.13) 0 1px, transparent 1px 10px) 0 100% / 100% 50% no-repeat;
+    block-size: 14px;
+    position: relative;
+  }
+
+  .meter-fill {
+    background: linear-gradient(to right, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.3));
+    border-inline-end: 2px solid var(--text-1);
+    box-shadow: 4px 0 10px -3px rgb(255 255 255 / 0.5);
+    inset: 0 auto 0 0;
+    min-inline-size: 2px;
+    position: absolute;
+    transition: inline-size var(--dur-ui) var(--ease-ui);
+  }
+
+  .meter-fill.is-full {
+    border-inline-end-color: var(--danger);
+  }
+
+  /* A small dark label laid over a frame. */
+  .frame-chip,
+  .status-pill {
+    align-items: center;
+    background: rgb(9 10 13 / 0.74);
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.13);
+    color: var(--text-1);
+    display: inline-flex;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    gap: 0.4375rem;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    padding: 0.375rem 0.5625rem;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* Lit while it is on the reel, hollow while it is a draft. */
+  .status-dot {
+    block-size: 7px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.6);
+    inline-size: 7px;
+  }
+
+  .status-pill[data-status="published"] .status-dot {
+    background: var(--text-1);
+    box-shadow: 0 0 8px rgb(255 255 255 / 0.85);
+  }
+
+  /* Somewhere to drop a file: a dashed outline around a shallow well. */
+  .dropzone {
+    background: rgb(9 10 13 / 0.38);
+    border-radius: 3px;
+    box-shadow: inset 0 2px 8px rgb(0 0 0 / 0.45);
+    outline: 1px dashed var(--line-3);
+    outline-offset: -1px;
+    transition:
+      background-color var(--dur-ui) var(--ease-ui),
+      outline-color var(--dur-ui) var(--ease-ui);
+  }
+
+  .dropzone.is-over {
+    background: rgb(255 255 255 / 0.06);
+    outline-color: var(--text-1);
+  }
+
+  /* A small item set into its panel. */
+  .well {
+    background: rgb(9 10 13 / 0.45);
+    border-radius: 3px;
+    box-shadow:
+      inset 0 1px 3px rgb(0 0 0 / 0.5),
+      inset 0 0 0 1px rgb(255 255 255 / 0.05);
+    min-block-size: 2.75rem;
   }
 
   @media (min-width: 1840px) {

@@ -33,13 +33,13 @@ function MenuLink({ href, external, icon, label, value }: { href: string; extern
 export function ContactMenu() {
   return (
     <>
-      <button type="button" popoverTarget={MENU_ID} data-testid="contact-button" className={buttonClass("primary", "contact-trigger shrink-0 !min-h-9 !gap-2 !px-3.5 !py-1.5 sm:!px-4")}>
+      <button type="button" popoverTarget={MENU_ID} data-testid="contact-button" className={buttonClass("primary", "header-menu-trigger shrink-0 !min-h-9 !gap-2 !px-3.5 !py-1.5 sm:!px-4")}>
         Contact us
-        <svg viewBox="0 0 12 12" aria-hidden="true" className="contact-chevron size-3 fill-none stroke-current stroke-[1.75]">
+        <svg viewBox="0 0 12 12" aria-hidden="true" className="header-menu-chevron size-3 fill-none stroke-current stroke-[1.75]">
           <path d="M2.500 4.500 6 8l3.500-3.500" />
         </svg>
       </button>
-      <div id={MENU_ID} popover="auto" data-testid="contact-menu" className="contact-menu plate">
+      <div id={MENU_ID} popover="auto" data-testid="contact-menu" className="header-menu plate">
         <MenuLink href={SITE.whatsappUrl} external icon={<WhatsAppIcon />} label="WhatsApp" value={SITE.whatsappDisplay} />
         <MenuLink href={SITE.emailUrl} icon={<MailIcon />} label="Email" value={SITE.email} />
       </div>

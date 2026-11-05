@@ -6,7 +6,7 @@ import { formatBytes, formatEta, percentOf } from "@/lib/media/format";
 import { INITIAL_UPLOAD_STATE, UploadController, type UploadServer, type UploadState } from "@/lib/media/upload-controller";
 import { MAX_VIDEO_MB, VIDEO_ACCEPT } from "@/lib/media/validation";
 import type { Project } from "@/types/domain";
-import { alertClass, noticeClass, panelClass, primaryButtonClass, smallButtonClass, successClass } from "./styles";
+import { alertClass, noticeClass, panelClass, panelHintClass, panelTitleClass, primaryButtonClass, smallButtonClass, successClass } from "./styles";
 
 const LEAVE_WARNING = "A video is still uploading. If you leave now it stops, and you will need to choose the file again to continue.";
 
@@ -144,15 +144,12 @@ export function VideoUploadPanel({
 
   return (
     <section ref={sectionRef} aria-labelledby={`${inputId}-title`} className={panelClass}>
-      <h2 id={`${inputId}-title`} className="text-lg font-medium text-bone">
-        {project?.video_path ? "Replace the video" : "Video"}
+      <h2 id={`${inputId}-title`} className={panelTitleClass}>
+        {project?.video_path ? "Replace the video" : "Add the video"}
       </h2>
 
       {project?.video_path && project.upload_status === "ready" ? (
-        <p className="mt-2 text-sm text-ash">
-          Current video: {formatBytes(project.video_size_bytes)}. It stays live until a new one has fully arrived, and the
-          old file is removed after that.
-        </p>
+        <p className={panelHintClass}>The current one stays live until the new one has fully arrived, and is removed after that.</p>
       ) : null}
 
       {interrupted ? (
@@ -169,7 +166,7 @@ export function VideoUploadPanel({
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`mt-4 border border-dashed p-6 text-center transition-colors ${dragging ? "border-bone bg-charcoal" : "border-line-strong"}`}
+          className={`dropzone mt-4 p-5 text-center sm:p-6 ${dragging ? "is-over" : ""}`}
         >
           <input
             ref={inputRef}
@@ -186,7 +183,8 @@ export function VideoUploadPanel({
               if (file) start(file);
             }}
           />
-          <button type="button" className={primaryButtonClass} onClick={() => inputRef.current?.click()}>
+          {/* The bright button when this is the next step, and a quiet one when it would only replace a finished video. */}
+          <button type="button" className={project?.video_path ? smallButtonClass : primaryButtonClass} onClick={() => inputRef.current?.click()}>
             Choose a video file
           </button>
           <p id={hintId} className="mt-3 text-sm text-ash">
@@ -213,9 +211,9 @@ export function VideoUploadPanel({
             aria-valuemax={100}
             aria-valuenow={Math.round(percent)}
             aria-valuetext={`${Math.round(percent)} percent`}
-            className="mt-3 h-2 w-full overflow-hidden bg-charcoal"
+            className="meter mt-3"
           >
-            <div className="h-full bg-bone transition-[width] duration-200" style={{ width: `${percent}%` }} />
+            <div className="meter-fill" style={{ inlineSize: `${percent}%` }} />
           </div>
           <p className="mt-2 flex flex-wrap justify-between gap-x-4 text-sm tabular-nums text-ash">
             <span data-testid="upload-percent">{Math.round(percent)}%</span>

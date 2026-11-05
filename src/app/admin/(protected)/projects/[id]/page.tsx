@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PageHead } from "@/components/admin/PageHead";
 import { ProjectEditor } from "@/components/admin/ProjectEditor";
+import { alertClass, pageClass } from "@/components/admin/styles";
 import { requireAdmin } from "@/lib/auth/admin";
 import { getProjectForAdmin } from "@/lib/projects/admin-queries";
 
@@ -20,8 +21,8 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
   } catch (error) {
     console.error("[admin] could not load project:", error instanceof Error ? error.message : error);
     return (
-      <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <p role="alert" className="border border-danger bg-graphite p-4 text-bone">
+      <main id="main" className={pageClass}>
+        <p role="alert" className={alertClass}>
           This project could not be loaded. The database may be paused or unreachable. Please try again shortly.
         </p>
       </main>
@@ -30,13 +31,8 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
   if (!project) notFound();
 
   return (
-    <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <Link href="/admin" className="inline-flex min-h-11 items-center text-sm text-ash underline underline-offset-4 hover:text-bone">
-        All projects
-      </Link>
-      <h1 dir="auto" className="mt-3 break-words text-3xl font-medium tracking-tight text-bone sm:text-4xl">
-        {project.title}
-      </h1>
+    <main id="main" className={pageClass}>
+      <PageHead back title={project.title} />
       <ProjectEditor project={project} />
     </main>
   );

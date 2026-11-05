@@ -16,27 +16,30 @@ import {
   failVideoUpload,
   finalizeVideoUpload,
   findDuplicateVideo,
-  getAdminVideoUrl,
   prepareVideoUpload,
   setProjectPublished,
   updateProject,
 } from "@/lib/projects/actions";
 import { type FieldErrors, parseProjectInput } from "@/lib/projects/schema";
 import type { Project } from "@/types/domain";
+import { ExternalIcon } from "./AdminIcons";
 import { PosterPanel } from "./PosterPanel";
+import { StatusPill } from "./StatusPill";
 import {
   alertClass,
   fieldErrorClass,
   fieldLabelClass,
   fieldHintClass,
   inputClass,
-  noticeClass,
   panelClass,
+  panelHintClass,
+  panelTitleClass,
   primaryButtonClass,
   smallButtonClass,
   successClass,
 } from "./styles";
 import { SubtitlesPanel } from "./SubtitlesPanel";
+import { VideoStage } from "./VideoStage";
 import { VideoUploadPanel } from "./VideoUploadPanel";
 
 interface FormValues {
@@ -91,38 +94,34 @@ function describedBy(id: string, hint: boolean, error: string | undefined) {
   return [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ") || undefined;
 }
 
-function AdminPreview({ projectId }: { projectId: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+const NEXT_STEPS = [
+  ["Create the draft", "It stays private. Nobody sees it until you publish it."],
+  ["The video uploads", "Stay on the page while it runs. If the connection drops, it carries on from where it stopped."],
+  ["Poster and subtitles", "A frame from the video becomes the poster, and you can change it. Add subtitles one language at a time."],
+  ["Publish", "It goes on the reel at once."],
+];
 
-  async function open() {
-    setLoading(true);
-    setError(null);
-    const result = await getAdminVideoUrl(projectId);
-    setLoading(false);
-    if (result.ok) setUrl(result.data.url);
-    else setError(result.error);
-  }
-
-  if (url) {
-    return (
-      <video src={url} controls preload="metadata" playsInline className="mt-4 aspect-video w-full bg-ink">
-        <track kind="captions" />
-      </video>
-    );
-  }
+// What the rest of the page will hold, so a new project's page explains itself before there is anything to show.
+function NextSteps() {
   return (
-    <div className="mt-4">
-      <button type="button" className={smallButtonClass} disabled={loading} onClick={() => void open()}>
-        {loading ? "Getting the video" : "Watch this video"}
-      </button>
-      {error ? (
-        <p role="alert" className={`mt-3 ${alertClass}`}>
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <section aria-labelledby="next-steps" className={panelClass}>
+      <h2 id="next-steps" className={panelTitleClass}>
+        What happens next
+      </h2>
+      <ol className="mt-4 grid gap-4">
+        {NEXT_STEPS.map(([title, body], index) => (
+          <li key={title} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 border-t border-line pt-4 first:border-t-0 first:pt-0">
+            <span aria-hidden="true" className="font-time text-sm text-mute">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <div>
+              <p className="text-sm font-medium text-bone">{title}</p>
+              <p className="mt-1 text-sm leading-relaxed text-ash">{body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -161,6 +160,7 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
   const [newVideoError, setNewVideoError] = useState<string | null>(null);
   const [newVideoDuplicate, setNewVideoDuplicate] = useState<DuplicateProject | null>(null);
   const [checkingVideo, setCheckingVideo] = useState(false);
+  const [draggingVideo, setDraggingVideo] = useState(false);
   const newVideoInput = useRef<HTMLInputElement>(null);
   const [uploadHere, setUploadHere] = useState<File | null>(null);
 
@@ -238,6 +238,8 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
         return;
       }
       setNewVideo(file);
+      // The file's name is a better start than an empty box, and nothing typed is ever replaced.
+      setValues((previous) => (previous.title ? previous : { ...previous, title: titleFromFile(file) }));
     } catch (error) {
       setNewVideoError(isFileReadError(error) ? UNREADABLE_FILE : explainFailure("The file could not be checked.", error));
     } finally {
@@ -297,157 +299,183 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
     }
   }
 
+  const published = project?.status === "published";
+
   return (
-    <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      <form onSubmit={(event) => void onSubmit(event)} noValidate className={`grid gap-5 ${panelClass}`} aria-label="Project details">
-        <Field id={id("title")} label="Title" error={errors.title}>
-          <input
-            id={id("title")}
-            name="title"
-            required
-            maxLength={160}
-            value={values.title}
-            aria-invalid={Boolean(errors.title)}
-            aria-describedby={describedBy(id("title"), false, errors.title)}
-            className={inputClass}
-            onChange={(event) => change("title", event.target.value)}
-          />
-        </Field>
+    <div className="mt-5 grid items-start gap-5 sm:mt-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-6">
+      {/* The cut and its words on the left, because that is what the page is about. What goes around it is on the right. */}
+      <div className="grid min-w-0 gap-5 lg:gap-6">
+        {project ? <VideoStage key={project.video_path ?? "none"} project={project} /> : null}
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field id={id("category")} label="Category" error={errors.category}>
-            <input
-              id={id("category")}
-              name="category"
-              required
-              maxLength={60}
-              value={values.category}
-              aria-invalid={Boolean(errors.category)}
-              aria-describedby={describedBy(id("category"), false, errors.category)}
-              className={inputClass}
-              onChange={(event) => change("category", event.target.value)}
-            />
-          </Field>
-          <Field id={id("language")} label="Language (optional)" hint="The language spoken in the video." error={errors.language}>
-            <input
-              id={id("language")}
-              name="language"
-              maxLength={60}
-              value={values.language}
-              aria-invalid={Boolean(errors.language)}
-              aria-describedby={describedBy(id("language"), true, errors.language)}
-              className={inputClass}
-              onChange={(event) => change("language", event.target.value)}
-            />
-          </Field>
-        </div>
+        <form onSubmit={(event) => void onSubmit(event)} noValidate className={`grid gap-5 ${panelClass}`} aria-label="Project details">
+          {project ? <h2 className={panelTitleClass}>Details</h2> : null}
 
-        <Field id={id("description")} label="Short description (optional)" error={errors.description}>
-          <textarea
-            id={id("description")}
-            name="description"
-            rows={4}
-            maxLength={2000}
-            value={values.description}
-            aria-invalid={Boolean(errors.description)}
-            aria-describedby={describedBy(id("description"), false, errors.description)}
-            className={inputClass}
-            onChange={(event) => change("description", event.target.value)}
-          />
-        </Field>
-
-        <label className="flex min-h-11 items-center gap-3 text-sm text-bone">
-          <input
-            type="checkbox"
-            name="is_featured"
-            checked={values.is_featured}
-            className="size-5 accent-bone"
-            onChange={(event) => change("is_featured", event.target.checked)}
-          />
-          Feature it: show this first in the portfolio
-        </label>
-
-        {!project ? (
-          <div className="border-t border-line pt-5">
-            <p className={fieldLabelClass}>Video</p>
-            <p className={fieldHintClass}>MP4 (H.264), up to {MAX_VIDEO_MB} MB. The upload starts as soon as the draft is created. You can also add it later.</p>
-            <input
-              ref={newVideoInput}
-              type="file"
-              accept={VIDEO_ACCEPT}
-              aria-label="Video file"
-              data-testid="new-video-input"
-              className="sr-only"
-              tabIndex={-1}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file) void pickNewVideo(file);
+          {!project ? (
+            <div
+              className={`dropzone p-5 text-center sm:p-6 ${draggingVideo ? "is-over" : ""}`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDraggingVideo(true);
               }}
+              onDragLeave={() => setDraggingVideo(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDraggingVideo(false);
+                const file = event.dataTransfer.files[0];
+                if (file && !checkingVideo) void pickNewVideo(file);
+              }}
+            >
+              <input
+                ref={newVideoInput}
+                type="file"
+                accept={VIDEO_ACCEPT}
+                aria-label="Video file"
+                data-testid="new-video-input"
+                className="sr-only"
+                tabIndex={-1}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void pickNewVideo(file);
+                }}
+              />
+              <button type="button" className={newVideo ? smallButtonClass : primaryButtonClass} disabled={checkingVideo} onClick={() => newVideoInput.current?.click()}>
+                {newVideo ? "Choose a different video" : "Choose a video file"}
+              </button>
+              {newVideo ? (
+                <p className="mt-3 break-words text-sm text-bone">
+                  {newVideo.name} ({formatBytes(newVideo.size)})
+                </p>
+              ) : (
+                <p className={`mx-auto max-w-md ${fieldHintClass} !mt-3`}>Or drop it here. MP4 (H.264), up to {MAX_VIDEO_MB} MB. You can also add it later.</p>
+              )}
+              {checkingVideo ? (
+                <p role="status" className="mt-3 text-sm text-bone">
+                  Checking the file
+                </p>
+              ) : null}
+              {newVideoError ? (
+                <div role="alert" className={`mt-3 text-start ${alertClass}`}>
+                  <p>{newVideoError}</p>
+                  {newVideoDuplicate ? (
+                    <p className="mt-2">
+                      It belongs to{" "}
+                      <a href={`/admin/projects/${newVideoDuplicate.id}`} className="underline underline-offset-4">
+                        {newVideoDuplicate.title}
+                      </a>
+                      .
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <Field id={id("title")} label="Title" error={errors.title}>
+            <input
+              id={id("title")}
+              name="title"
+              required
+              maxLength={160}
+              value={values.title}
+              aria-invalid={Boolean(errors.title)}
+              aria-describedby={describedBy(id("title"), false, errors.title)}
+              className={inputClass}
+              onChange={(event) => change("title", event.target.value)}
             />
-            <button type="button" className={`mt-3 ${smallButtonClass}`} disabled={checkingVideo} onClick={() => newVideoInput.current?.click()}>
-              {newVideo ? "Choose a different video" : "Choose a video file"}
-            </button>
-            {checkingVideo ? (
-              <p role="status" className="mt-3 text-sm text-bone">
-                Checking the file
-              </p>
-            ) : null}
-            {newVideo ? (
-              <p className="mt-3 break-words text-sm text-bone">
-                {newVideo.name} ({formatBytes(newVideo.size)})
-              </p>
-            ) : null}
-            {newVideoError ? (
-              <div role="alert" className={`mt-3 ${alertClass}`}>
-                <p>{newVideoError}</p>
-                {newVideoDuplicate ? (
-                  <p className="mt-2">
-                    It belongs to{" "}
-                    <a href={`/admin/projects/${newVideoDuplicate.id}`} className="underline underline-offset-4">
-                      {newVideoDuplicate.title}
-                    </a>
-                    .
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
+          </Field>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field id={id("category")} label="Category" error={errors.category}>
+              <input
+                id={id("category")}
+                name="category"
+                required
+                maxLength={60}
+                value={values.category}
+                aria-invalid={Boolean(errors.category)}
+                aria-describedby={describedBy(id("category"), false, errors.category)}
+                className={inputClass}
+                onChange={(event) => change("category", event.target.value)}
+              />
+            </Field>
+            <Field id={id("language")} label="Language (optional)" hint="The language spoken in the video." error={errors.language}>
+              <input
+                id={id("language")}
+                name="language"
+                maxLength={60}
+                value={values.language}
+                aria-invalid={Boolean(errors.language)}
+                aria-describedby={describedBy(id("language"), true, errors.language)}
+                className={inputClass}
+                onChange={(event) => change("language", event.target.value)}
+              />
+            </Field>
           </div>
-        ) : null}
 
-        {formError ? (
-          <p role="alert" className={alertClass}>
-            {formError}
-          </p>
-        ) : null}
-        {saved ? (
-          <p role="status" className={successClass}>
-            {saved}
-          </p>
-        ) : null}
+          <Field id={id("description")} label="Short description (optional)" error={errors.description}>
+            <textarea
+              id={id("description")}
+              name="description"
+              rows={3}
+              maxLength={2000}
+              value={values.description}
+              aria-invalid={Boolean(errors.description)}
+              aria-describedby={describedBy(id("description"), false, errors.description)}
+              className={inputClass}
+              onChange={(event) => change("description", event.target.value)}
+            />
+          </Field>
 
-        {/* Stays in view on short screens, where the form runs past the bottom of the window or dialog. */}
-        <div className="sticky bottom-0 z-10 -mx-5 -mb-5 rounded-b-[4px] border-t border-line bg-[var(--surface-1)] px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
-          <button type="submit" disabled={saving || checkingVideo} className={primaryButtonClass}>
-            {saving ? "Saving" : project ? "Save details" : newVideo ? "Create draft and upload" : "Create draft"}
-          </button>
-        </div>
-      </form>
+          <label className="flex min-h-11 items-center gap-3 text-sm text-bone">
+            <input
+              type="checkbox"
+              name="is_featured"
+              checked={values.is_featured}
+              className="size-5 accent-bone"
+              onChange={(event) => change("is_featured", event.target.checked)}
+            />
+            Feature it: show this first on the reel
+          </label>
 
-      <div className="grid gap-6">
+          {formError ? (
+            <p role="alert" className={alertClass}>
+              {formError}
+            </p>
+          ) : null}
+          {saved ? (
+            <p role="status" className={successClass}>
+              {saved}
+            </p>
+          ) : null}
+
+          {/* A new project's longer form runs past the bottom of a short window or dialog, so its button stays in view. */}
+          <div className={`${project ? "" : "sticky bottom-0 z-10"} -mx-5 -mb-5 rounded-b-[4px] border-t border-line bg-[var(--surface-1)] px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6`}>
+            <button type="submit" disabled={saving || checkingVideo} className={primaryButtonClass}>
+              {saving ? "Saving" : project ? "Save details" : newVideo ? "Create draft and upload" : "Create draft"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="grid min-w-0 gap-5 lg:gap-6">
         {project ? (
           <>
             <section aria-label="Publishing" className={panelClass} data-testid="publish-panel">
-              <p className="text-sm text-bone">
-                Status: <strong>{project.status === "published" ? "Published" : "Draft"}</strong>
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <button type="button" className={smallButtonClass} disabled={publishing} onClick={() => void togglePublished()}>
-                  {publishing ? "Working" : project.status === "published" ? "Unpublish" : "Publish"}
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={panelTitleClass}>Publishing</h2>
+                <StatusPill status={project.status} />
+              </div>
+              <p className={panelHintClass}>{published ? "It is on the reel now, for anyone to watch." : "Only you can see this. It goes on the reel when you say so."}</p>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button type="button" className={published ? smallButtonClass : primaryButtonClass} disabled={publishing} onClick={() => void togglePublished()}>
+                  {publishing ? "Working" : published ? "Unpublish" : "Publish"}
                 </button>
-                {project.status === "published" ? (
-                  <a href="/#work" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm text-bone underline underline-offset-4">
-                    View on the site<span className="sr-only"> (opens in a new tab)</span>
+                {published ? (
+                  <a href="/#work" target="_blank" rel="noreferrer" className={smallButtonClass}>
+                    View on the site
+                    <ExternalIcon />
+                    <span className="sr-only"> (opens in a new tab)</span>
                   </a>
                 ) : null}
               </div>
@@ -456,7 +484,6 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
                   {publishError}
                 </p>
               ) : null}
-              {project.video_path && project.upload_status === "ready" ? <AdminPreview key={project.video_path} projectId={project.id} /> : null}
             </section>
             <VideoUploadPanel
               project={project}
@@ -469,7 +496,7 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
             <SubtitlesPanel projectId={project.id} />
           </>
         ) : (
-          <p className={noticeClass}>The poster and publishing controls appear once the draft is created.</p>
+          <NextSteps />
         )}
       </div>
     </div>

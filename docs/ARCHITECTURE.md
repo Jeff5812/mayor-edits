@@ -57,6 +57,18 @@ and every card, panel and button follows, admin included. Life comes from the la
 and scroll playhead, the running timecode, the film strip, the leader sweep and light leak on empty frames, and letters
 that catch the light. Everything moving is transform or opacity, and all of it stops for people who ask for less motion.
 
+The admin ("the cutting room") is the same design, not a second one: the same header bar, cards, frames and buttons, with its
+shared classes in [styles.ts](../src/components/admin/styles.ts) and only a few pieces of its own at the end of the components
+layer in globals.css: the readout, the timeline meter used for storage and upload progress, the labels laid over frames, and the
+drop area.
+
+## How the owner gets in
+
+The owner opens `/admin` on any device, by address or through the small "Owner sign in" link in the public footer. Keeping that
+address quiet is not what protects anything, so the link costs nothing: every admin page and action checks the session and
+`is_admin()` on the server. Signing in is per device, and public sign-ups are off. To add an administrator, create the user in
+Supabase (Authentication, Users), then add their id to `public.admins`.
+
 ## Rules that are not obvious from the code
 
 - **Fonts** are self-hosted through `@fontsource-variable`. `next/font/google` timed out on the development machine.

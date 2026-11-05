@@ -4,10 +4,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { UNREADABLE_FILE, explainFailure, isFileReadError } from "@/lib/media/failures";
 import { SUBTITLE_ACCEPT, SUBTITLE_LANGUAGES, SUBTITLE_MAX_BYTES, type SubtitleCode, subtitleLabel, toWebVtt } from "@/lib/media/subtitles";
 import { listProjectSubtitles, removeProjectSubtitle, saveProjectSubtitle } from "@/lib/projects/subtitle-actions";
-import { alertClass, fieldHintClass, fieldLabelClass, inputClass, panelClass, smallButtonClass } from "./styles";
+import { CloseIcon } from "./AdminIcons";
+import { alertClass, fieldLabelClass, inputClass, panelClass, panelHintClass, panelTitleClass, smallButtonClass } from "./styles";
 
 export function SubtitlesPanel({ projectId }: { projectId: string }) {
   const [present, setPresent] = useState<SubtitleCode[]>([]);
+  const [listed, setListed] = useState(false);
   const [language, setLanguage] = useState<SubtitleCode>("en");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +28,9 @@ export function SubtitlesPanel({ projectId }: { projectId: string }) {
       })
       .catch((problem) => {
         if (current) setError(explainFailure("The subtitles could not be listed.", problem));
+      })
+      .finally(() => {
+        if (current) setListed(true);
       });
     return () => {
       current = false;
@@ -81,57 +86,73 @@ export function SubtitlesPanel({ projectId }: { projectId: string }) {
 
   return (
     <section aria-labelledby={titleId} className={panelClass} data-testid="subtitles-panel">
-      <h2 id={titleId} className="text-lg font-medium text-bone">
+      <h2 id={titleId} className={panelTitleClass}>
         Subtitles
       </h2>
-      <p className="mt-2 text-sm text-ash">Visitors can turn these on in the player. Add one .srt or .vtt file for each language.</p>
+      <p className={panelHintClass}>Visitors can turn these on in the player. Add one .srt or .vtt file for each language.</p>
+
+      {/* Takes a moment on a slow line, and an empty list would look as if there were none. */}
+      {!listed ? (
+        <p role="status" className="mt-4 text-sm text-mute">
+          Looking for subtitles
+        </p>
+      ) : null}
 
       {present.length > 0 ? (
-        <ul className="mt-4 grid gap-2">
+        <ul className="mt-4 grid grid-cols-2 gap-2">
           {present.map((code) => (
-            <li key={code} className="flex min-h-11 items-center justify-between gap-3 border-b border-line pb-2 text-sm text-bone">
-              <span>{subtitleLabel(code)}</span>
-              <button type="button" className={smallButtonClass} disabled={busy} onClick={() => void remove(code)}>
-                Remove<span className="sr-only"> {subtitleLabel(code)} subtitles</span>
+            <li key={code} className="well flex items-center justify-between gap-1 ps-3 text-sm text-bone">
+              <span lang={code} dir="auto" className="min-w-0 truncate">
+                {subtitleLabel(code)}
+              </span>
+              <button
+                type="button"
+                aria-label={`Remove ${subtitleLabel(code)} subtitles`}
+                title="Remove"
+                disabled={busy}
+                className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center text-ash transition-colors duration-200 hover:text-bone disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => void remove(code)}
+              >
+                <CloseIcon />
               </button>
             </li>
           ))}
         </ul>
       ) : null}
 
-      <div className="mt-4">
-        <label htmlFor={languageId} className={fieldLabelClass}>
-          Language
-        </label>
-        <select id={languageId} value={language} className={inputClass} onChange={(event) => setLanguage(event.target.value as SubtitleCode)}>
-          {SUBTITLE_LANGUAGES.map(({ code, label }) => (
-            <option key={code} value={code}>
-              {label}
-              {present.includes(code) ? " (replace)" : ""}
-            </option>
-          ))}
-        </select>
-        <p className={fieldHintClass}>Choosing a language that already has subtitles replaces them.</p>
+      <div className="mt-4 flex flex-wrap items-end gap-x-2 gap-y-3">
+        <div className="min-w-40 flex-1">
+          <label htmlFor={languageId} className={fieldLabelClass}>
+            Language
+          </label>
+          <select id={languageId} value={language} className={inputClass} onChange={(event) => setLanguage(event.target.value as SubtitleCode)}>
+            {SUBTITLE_LANGUAGES.map(({ code, label }) => (
+              <option key={code} value={code}>
+                {label}
+                {present.includes(code) ? " (replace)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <input
+          ref={fileInput}
+          type="file"
+          accept={SUBTITLE_ACCEPT}
+          aria-label="Subtitle file"
+          data-testid="subtitle-input"
+          tabIndex={-1}
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            // Clearing it lets the same file be chosen again after a failure.
+            event.target.value = "";
+            if (file) void addFile(file);
+          }}
+        />
+        <button type="button" className={smallButtonClass} disabled={busy} onClick={() => fileInput.current?.click()}>
+          {busy ? "Working" : "Choose a subtitle file"}
+        </button>
       </div>
-
-      <input
-        ref={fileInput}
-        type="file"
-        accept={SUBTITLE_ACCEPT}
-        aria-label="Subtitle file"
-        data-testid="subtitle-input"
-        tabIndex={-1}
-        className="sr-only"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          // Clearing it lets the same file be chosen again after a failure.
-          event.target.value = "";
-          if (file) void addFile(file);
-        }}
-      />
-      <button type="button" className={`mt-3 ${smallButtonClass}`} disabled={busy} onClick={() => fileInput.current?.click()}>
-        {busy ? "Working" : "Choose a subtitle file"}
-      </button>
 
       {error ? (
         <p role="alert" className={`mt-3 ${alertClass}`}>

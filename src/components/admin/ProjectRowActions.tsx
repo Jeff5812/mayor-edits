@@ -6,7 +6,8 @@ import { explainFailure } from "@/lib/media/failures";
 import type { ActionResult } from "@/lib/projects/action-types";
 import { deleteProject, setProjectFeatured, setProjectPublished } from "@/lib/projects/actions";
 import type { Project } from "@/types/domain";
-import { alertClass, dangerButtonClass, smallButtonClass } from "./styles";
+import { StarIcon, TrashIcon } from "./AdminIcons";
+import { alertClass, dangerButtonClass, iconButtonClass, primaryButtonClass, smallButtonClass } from "./styles";
 
 export function ProjectRowActions({ project }: { project: Project }) {
   const [pending, startTransition] = useTransition();
@@ -36,52 +37,63 @@ export function ProjectRowActions({ project }: { project: Project }) {
   }
 
   const published = project.status === "published";
+  // A finished draft has one obvious next step, so that button is the bright one.
+  const readyToPublish = !published && project.upload_status === "ready";
+  const featureName = project.is_featured ? "Featured" : "Feature";
 
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href={`/admin/projects/${project.id}`} className={smallButtonClass}>
-          Edit<span className="sr-only"> {project.title}</span>
-        </Link>
-        <button type="button" disabled={pending} className={smallButtonClass} onClick={() => run(() => setProjectPublished(project.id, !published))}>
-          {published ? "Unpublish" : "Publish"}
-          <span className="sr-only"> {project.title}</span>
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          aria-pressed={project.is_featured}
-          className={smallButtonClass}
-          onClick={() => run(() => setProjectFeatured(project.id, !project.is_featured))}
-        >
-          {project.is_featured ? "Featured" : "Feature"}
-          <span className="sr-only"> {project.title}</span>
-        </button>
-        {confirming ? (
-          <div role="group" aria-label={`Confirm deleting ${project.title}`} className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-bone">Delete it and its files for good?</span>
-            <button type="button" disabled={pending} className={dangerButtonClass} onClick={() => run(() => deleteProject(project.id))}>
-              {pending ? "Deleting" : "Yes, delete"}
-            </button>
+      {confirming ? (
+        <div role="group" aria-label={`Confirm deleting ${project.title}`} className="flex flex-wrap items-center gap-2">
+          <p className="me-1 text-sm text-bone">Delete it and its files?</p>
+          <button type="button" disabled={pending} className={dangerButtonClass} onClick={() => run(() => deleteProject(project.id))}>
+            {pending ? "Deleting" : "Yes, delete"}
+          </button>
+          <button
+            ref={cancelRef}
+            type="button"
+            disabled={pending}
+            className={smallButtonClass}
+            onClick={() => {
+              setConfirming(false);
+              requestAnimationFrame(() => deleteRef.current?.focus());
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/projects/${project.id}`} className={smallButtonClass}>
+            Edit<span className="sr-only"> {project.title}</span>
+          </Link>
+          <button
+            type="button"
+            disabled={pending}
+            className={readyToPublish ? primaryButtonClass : smallButtonClass}
+            onClick={() => run(() => setProjectPublished(project.id, !published))}
+          >
+            {published ? "Unpublish" : "Publish"}
+            <span className="sr-only"> {project.title}</span>
+          </button>
+          <div className="ms-auto flex gap-2">
             <button
-              ref={cancelRef}
               type="button"
               disabled={pending}
-              className={smallButtonClass}
-              onClick={() => {
-                setConfirming(false);
-                requestAnimationFrame(() => deleteRef.current?.focus());
-              }}
+              aria-pressed={project.is_featured}
+              aria-label={`${featureName} ${project.title}`}
+              title={project.is_featured ? "Featured: shown first on the reel. Press to undo." : "Feature: show this first on the reel"}
+              className={iconButtonClass}
+              onClick={() => run(() => setProjectFeatured(project.id, !project.is_featured))}
             >
-              Cancel
+              <StarIcon filled={project.is_featured} />
+            </button>
+            <button ref={deleteRef} type="button" disabled={pending} aria-label={`Delete ${project.title}`} title="Delete" className={iconButtonClass} onClick={() => setConfirming(true)}>
+              <TrashIcon />
             </button>
           </div>
-        ) : (
-          <button ref={deleteRef} type="button" disabled={pending} className={smallButtonClass} onClick={() => setConfirming(true)}>
-            Delete<span className="sr-only"> {project.title}</span>
-          </button>
-        )}
-      </div>
+        </div>
+      )}
       {error ? (
         <p role="alert" className={alertClass}>
           {error}
