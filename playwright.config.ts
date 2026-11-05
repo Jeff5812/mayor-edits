@@ -10,6 +10,8 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   timeout: 10 * 60 * 1000,
+  // Real services on a slow connection, and a dev server compiling each page the first time it is visited.
+  expect: { timeout: 30_000 },
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     // Real Chrome, because Playwright's own browser cannot play H.264.

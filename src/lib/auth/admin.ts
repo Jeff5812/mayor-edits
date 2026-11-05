@@ -1,6 +1,7 @@
 import "server-only";
 import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -13,6 +14,8 @@ export class NotAdminError extends Error {
 
 async function getAdminUser(): Promise<User | null> {
   if (!isSupabaseConfigured()) return null;
+  // Checking a session reads the clock, and a private page should only render for a real visit, never a prefetch.
+  await connection();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

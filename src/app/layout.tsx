@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={display.variable}>
+    <html lang="en" data-scroll-behavior="smooth" className={display.variable}>
       <body>{children}</body>
     </html>
   );

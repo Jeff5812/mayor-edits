@@ -77,6 +77,9 @@ administrator and a generated MP4, which it describes at the top.
 
 - 2026-11-04: restored and trimmed the old build's upload and admin code, moved video to R2, built the public page and
   upload from the reel. Unit tests pass, and the production build passes against a local stand-in.
-- **Not yet proven against real services:** upload, playback, publish, delete and upload from the reel. The live test is
-  written. It needs the migration in `supabase/migrations/20261104120000_realign_single_page_r2.sql` to be run, and R2 keys
-  in `.env.local`.
+- 2026-11-05: the migration is applied and the live test passes against real Supabase and real R2, on the dev server: upload,
+  playback with seeking, publish, edit, unpublish, duplicates, delete and upload from the reel. A separate run of a 119 MiB
+  upload through the page survived a pause, a 45-second connection drop and a reload, sending no confirmed part twice.
+- **Not yet proven:** a full 500 MB upload, and anything on the deployed site. The site has not been deployed.
+- Measured on one slow connection (about 1 to 8 Mbps down) on 2026-11-05: a page view requests nothing from R2, and 2 Mbps
+  video played smoothly where 8 Mbps kept stalling. Each video is one file at one quality, so bitrate decides who can watch it.

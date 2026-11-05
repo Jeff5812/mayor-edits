@@ -5,6 +5,9 @@ import { listAllProjects } from "@/lib/projects/admin-queries";
 
 export const metadata: Metadata = { title: "Projects", robots: { index: false, follow: false } };
 
+// Reads the session, so it cannot render ahead of the request.
+export const instant = false;
+
 async function loadProjects() {
   try {
     return await listAllProjects();

@@ -5,6 +5,9 @@ import { requireAdmin } from "@/lib/auth/admin";
 
 export const metadata: Metadata = { title: "New project", robots: { index: false, follow: false } };
 
+// Reads the session, so it cannot render ahead of the request.
+export const instant = false;
+
 export default async function NewProjectPage() {
   await requireAdmin();
   return (

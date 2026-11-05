@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 // The owner's whole journey against the real Supabase project and the real R2 bucket. It writes real data,
 // so it only runs when pointed at a test administrator and a real H.264 MP4, and it deletes what it makes:
@@ -19,12 +19,24 @@ let projectId = "";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
-async function signIn(page: import("@playwright/test").Page) {
-  await page.goto("/admin/login");
+// Waits until the page is interactive, because a click that lands before then is lost.
+function open(page: Page, path: string) {
+  return page.goto(path, { waitUntil: "networkidle" });
+}
+
+async function signIn(page: Page) {
+  await open(page, "/admin/login");
   await page.getByLabel("Email").fill(email as string);
   await page.getByLabel("Password").fill(password as string);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/admin$/);
+}
+
+async function deleteFromDashboard(page: Page, projectTitle: string) {
+  const row = page.getByTestId("project-row").filter({ hasText: projectTitle });
+  await row.getByRole("button", { name: /^Delete/ }).click();
+  await row.getByRole("button", { name: "Yes, delete" }).click();
+  await expect(row).toHaveCount(0, { timeout: 60_000 });
 }
 
 test("a signed-out visitor cannot reach the admin area", async ({ page }) => {
@@ -77,18 +89,25 @@ test("the owner uploads a video with visible progress, and it stays private as a
 
 test("a published video appears at once and really plays, including after a seek", async ({ page }) => {
   await signIn(page);
-  await page.goto(`/admin/projects/${projectId}`);
+  await open(page, `/admin/projects/${projectId}`);
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByTestId("publish-panel")).toContainText("Published");
 
   const visitor = await page.context().browser()!.newContext();
   const visitorPage = await visitor.newPage();
-  await visitorPage.goto("/");
+  const videoRequests: string[] = [];
+  visitorPage.on("request", (request) => {
+    if (request.url().includes(".r2.cloudflarestorage.com")) videoRequests.push(request.url());
+  });
+  await open(visitorPage, "/");
   const card = visitorPage.getByTestId("public-project").filter({ hasText: title });
   await expect(card).toBeVisible();
   await expect(card).toContainText("Documentary · English");
-  // The public page never carries the video's storage key.
-  expect(await visitorPage.content()).not.toContain(projectId + "/");
+  // The public page never says where a video is stored. Posters are public and do sit under the project's id.
+  const html = await visitorPage.content();
+  for (const location of [".mp4", "video_path", "r2.cloudflarestorage.com"]) expect(html).not.toContain(location);
+  // A video's size cannot slow the page down, because nothing is downloaded until someone presses play.
+  expect(videoRequests).toEqual([]);
 
   await card.getByTestId("card-play").click();
   const video = visitorPage.getByTestId("video-element");
@@ -111,7 +130,7 @@ test("a published video appears at once and really plays, including after a seek
 
 test("details can be edited, and the change reaches the public page", async ({ page }) => {
   await signIn(page);
-  await page.goto(`/admin/projects/${projectId}`);
+  await open(page, `/admin/projects/${projectId}`);
   await page.getByLabel("Language (optional)").fill("French");
   await page.getByRole("button", { name: "Save details" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
@@ -125,7 +144,7 @@ test("details can be edited, and the change reaches the public page", async ({ p
 
 test("unpublishing removes it from the page and stops new video links", async ({ page }) => {
   await signIn(page);
-  await page.goto(`/admin/projects/${projectId}`);
+  await open(page, `/admin/projects/${projectId}`);
   await page.getByRole("button", { name: "Unpublish" }).click();
   await expect(page.getByTestId("publish-panel")).toContainText("Draft");
 
@@ -153,10 +172,8 @@ test("a file that is not an MP4 is refused with a clear reason", async ({ page }
 
 test("deleting removes the project and its files", async ({ page }) => {
   await signIn(page);
-  const row = page.getByTestId("project-row").filter({ hasText: title });
-  await row.getByRole("button", { name: /^Delete/ }).click();
-  await row.getByRole("button", { name: "Yes, delete" }).click();
-  await expect(row).toHaveCount(0, { timeout: 60_000 });
+  await open(page, "/admin");
+  await deleteFromDashboard(page, title);
 });
 
 test("visitors see no owner controls on the reel", async ({ page }) => {
@@ -168,7 +185,7 @@ test("visitors see no owner controls on the reel", async ({ page }) => {
 test("the owner can upload straight from a frame on the reel, and its name and time appear", async ({ page }) => {
   const reelTitle = `${title} from the reel`;
   await signIn(page);
-  await page.goto("/");
+  await open(page, "/");
   await expect(page.getByTestId("owner-upload").first()).toBeAttached({ timeout: 30_000 });
   await page.getByTestId("owner-video-input").first().setInputFiles(videoPath as string);
 
@@ -188,9 +205,6 @@ test("the owner can upload straight from a frame on the reel, and its name and t
   await expect(card.locator("time")).toBeVisible();
 
   // Clean up through the same dashboard the owner uses.
-  await page.goto("/admin");
-  const row = page.getByTestId("project-row").filter({ hasText: reelTitle });
-  await row.getByRole("button", { name: /^Delete/ }).click();
-  await row.getByRole("button", { name: "Yes, delete" }).click();
-  await expect(row).toHaveCount(0, { timeout: 60_000 });
+  await open(page, "/admin");
+  await deleteFromDashboard(page, reelTitle);
 });
