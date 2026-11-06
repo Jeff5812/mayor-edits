@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-/* The room: rich near-blacks with a trace of cool grade, stepping up through raised surfaces. All tones stay
-   close together. The only strong colour on the page comes from the work itself. */
+/* The room: rich near-blacks with a trace of cool grade, stepping up through raised surfaces. The black never sits alone:
+   its partners are the two colours of the classic film grade. Ember is the one accent, and teal is the far end of its light,
+   and between them they light the buttons, the nav, the panels and the page behind them. */
 :root {
   color-scheme: dark;
 
@@ -17,6 +18,10 @@
   --text-2: #bcbfc6;
   --text-3: #8e929a;
   --danger: #ff7a70; /* Admin validation and upload errors only. Never on the public page. */
+  --ember: 255 122 61; /* As channels, so each use sets its own strength. */
+  --teal: 70 178 188;
+  --hot: #fff3e6; /* The white-hot point of a lit edge. */
+  --glass: #07080b; /* The black inside a button. */
 
   --gutter: 20px;
   --hero-size: 19.2vw;
@@ -83,6 +88,7 @@
   --color-ash: var(--text-2);
   --color-mute: var(--text-3);
   --color-danger: var(--danger);
+  --color-ember: rgb(var(--ember));
   --font-sans: "Onest Variable", "Onest Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font-league-gothic), "Arial Narrow", Impact, sans-serif;
   --font-time: "Chivo Mono Variable", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
@@ -141,8 +147,13 @@
     scroll-padding-block-start: 5.5rem;
   }
 
+  /* The grade carries on down the whole page, far below where the room light reaches, so no stretch of it is flat. */
   body {
-    background: var(--grain), var(--bg);
+    background:
+      var(--grain),
+      radial-gradient(70% 34% at 0% 52%, rgb(var(--ember) / 0.08), transparent),
+      radial-gradient(70% 34% at 100% 78%, rgb(var(--teal) / 0.08), transparent),
+      var(--bg);
     color: var(--text-2);
     font-family: var(--font-sans);
     font-synthesis: none;
@@ -158,12 +169,12 @@
 }
 
 @layer components {
-  /* Large headlines catch the light: bright at the top of each line, falling to silver at the foot, and
-     standing off the page on their own shadow. */
+  /* Large headlines catch the light: bright white at the top of each line, warming to copper at the foot as if lit by the
+     same ember as the buttons, and standing off the page on their own shadow. */
   .display-deep {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
-    background: linear-gradient(to bottom, #ffffff 22%, #d4d7dc 62%, #9a9ea6 100%);
+    background: linear-gradient(to bottom, #ffffff 26%, #f8ebdd 60%, #e2ae8a 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -179,20 +190,25 @@
     text-shadow: 0 1px 2px rgb(0 0 0 / 0.75);
   }
 
-  /* A raised surface: the one material for cards and panels, so depth is consistent across the page. */
+  /* A raised surface: the one material for cards and panels, so depth is consistent across the page. It picks up the room's
+     light, ember from one corner and teal from the other, so no panel is a plain grey. */
   .plate {
-    background: linear-gradient(to bottom, var(--surface-3), var(--surface-2) 34%, var(--surface-1));
+    background:
+      radial-gradient(85% 110% at 0% 0%, rgb(var(--ember) / 0.09), transparent 62%),
+      radial-gradient(85% 110% at 100% 100%, rgb(var(--teal) / 0.08), transparent 62%),
+      linear-gradient(to bottom, var(--surface-3), var(--surface-2) 34%, var(--surface-1));
     border-radius: 4px;
     box-shadow: var(--edge), var(--lift-1);
   }
 
-  /* Buttons have thickness: a lit top edge, a shaded bottom edge, a shadow under them, and they press in. */
+  /* The one button, everywhere: a pill of black glass with a lit edge, white-hot at its left end, burning ember along its
+     length and cooling to teal at the far end, the same way the room is lit. The light blooms out around the hot end, and
+     pressing or pointing turns it up. The main action burns brighter than the rest, which is all that tells them apart. */
   .btn {
-    border-radius: 3px;
+    border-radius: 999px;
     transition:
       transform 180ms var(--ease-ui),
-      box-shadow 180ms var(--ease-ui),
-      filter 180ms var(--ease-ui);
+      box-shadow 260ms var(--ease-ui);
   }
 
   .btn:hover {
@@ -207,69 +223,69 @@
     transform: none;
   }
 
+  .btn-primary,
+  .btn-outline {
+    border: 1.5px solid transparent;
+    color: var(--text-1);
+  }
+
   .btn-primary {
-    background: linear-gradient(to bottom, #ffffff, #eceef1 52%, #c8ccd3);
+    background:
+      linear-gradient(var(--glass), var(--glass)) padding-box,
+      linear-gradient(95deg, var(--hot) 0%, rgb(var(--ember)) 14%, rgb(var(--ember) / 0.65) 50%, rgb(var(--teal) / 0.45) 100%) border-box;
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.95),
-      inset 0 -2px 0 rgb(9 10 13 / 0.14),
-      0 1px 2px rgb(0 0 0 / 0.65),
-      0 12px 24px -10px rgb(0 0 0 / 0.85);
-    color: var(--bg);
+      -5px 0 14px -3px rgb(var(--ember) / 0.65),
+      0 0 18px -6px rgb(var(--ember) / 0.45),
+      inset 7px 0 12px -9px rgb(var(--ember) / 0.7);
   }
 
   .btn-primary:hover {
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 1),
-      inset 0 -2px 0 rgb(9 10 13 / 0.12),
-      0 2px 3px rgb(0 0 0 / 0.65),
-      0 18px 30px -10px rgb(0 0 0 / 0.9);
-    filter: brightness(1.04);
+      -6px 0 20px -2px rgb(var(--ember) / 0.9),
+      0 0 30px -4px rgb(var(--ember) / 0.6),
+      inset 10px 0 16px -9px rgb(var(--ember) / 0.9);
   }
 
   .btn-primary:active {
     box-shadow:
-      inset 0 2px 4px rgb(9 10 13 / 0.28),
-      0 1px 1px rgb(0 0 0 / 0.6);
+      -3px 0 8px -3px rgb(var(--ember) / 0.6),
+      inset 0 0 12px -4px rgb(var(--ember) / 0.55);
   }
 
   .btn-outline {
-    background: linear-gradient(to bottom, var(--surface-4), var(--surface-2));
+    background:
+      linear-gradient(var(--glass), var(--glass)) padding-box,
+      linear-gradient(95deg, rgb(var(--ember) / 0.9) 0%, rgb(var(--ember) / 0.42) 30%, rgb(255 255 255 / 0.15) 66%, rgb(var(--teal) / 0.32) 100%) border-box;
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.16),
-      inset 0 -2px 0 rgb(0 0 0 / 0.32),
-      0 0 0 1px rgb(0 0 0 / 0.5),
-      0 12px 24px -10px rgb(0 0 0 / 0.85);
-    color: var(--text-1);
+      -3px 0 10px -4px rgb(var(--ember) / 0.42),
+      0 6px 14px -8px rgb(0 0 0 / 0.7);
   }
 
   .btn-outline:hover {
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.22),
-      inset 0 -2px 0 rgb(0 0 0 / 0.32),
-      0 0 0 1px rgb(0 0 0 / 0.5),
-      0 18px 30px -10px rgb(0 0 0 / 0.9);
-    filter: brightness(1.12);
+      -4px 0 14px -3px rgb(var(--ember) / 0.7),
+      0 0 20px -6px rgb(var(--ember) / 0.42),
+      inset 7px 0 12px -9px rgb(var(--ember) / 0.6);
   }
 
   .btn-outline:active {
     box-shadow:
-      inset 0 2px 5px rgb(0 0 0 / 0.5),
-      0 0 0 1px rgb(0 0 0 / 0.5);
+      -2px 0 6px -3px rgb(var(--ember) / 0.42),
+      inset 0 0 10px -4px rgb(var(--ember) / 0.42);
   }
 
-  /* The header floats over the page as its own raised bar. */
+  /* The nav is the same object at full length: one long pill of black glass, floating over the page. Its edge is quieter
+     than a button's, so the button inside it stays the brightest thing up there. */
   .header-bar {
-    background: linear-gradient(to bottom, rgb(45 50 58 / 0.94), rgb(23 26 31 / 0.96));
-    border-radius: 4px;
-    box-shadow: var(--edge), 0 1px 2px rgb(0 0 0 / 0.6), 0 18px 34px -14px rgb(0 0 0 / 0.9);
-  }
-
-  @media (hover: hover) {
-    .header-bar {
-      -webkit-backdrop-filter: blur(16px);
-      backdrop-filter: blur(16px);
-      background: linear-gradient(to bottom, rgb(45 50 58 / 0.78), rgb(23 26 31 / 0.84));
-    }
+    background:
+      linear-gradient(rgb(7 8 11 / 0.95), rgb(7 8 11 / 0.95)) padding-box,
+      linear-gradient(95deg, var(--hot) 0%, rgb(var(--ember)) 6%, rgb(var(--ember) / 0.4) 38%, rgb(var(--teal) / 0.3) 100%) border-box;
+    border: 1.5px solid transparent;
+    border-radius: 999px;
+    box-shadow:
+      -6px 0 18px -5px rgb(var(--ember) / 0.55),
+      0 0 26px -12px rgb(var(--ember) / 0.35),
+      0 18px 34px -14px rgb(0 0 0 / 0.75);
   }
 
   /* The room light: the lead poster, blurred far past recognition, lights the top of the page from behind the
@@ -294,13 +310,13 @@
   }
 
   .room-light::before {
-    background: radial-gradient(closest-side, rgb(222 140 62 / 0.2), transparent);
+    background: radial-gradient(closest-side, rgb(var(--ember) / 0.2), transparent);
     left: -10%;
     top: -8%;
   }
 
   .room-light::after {
-    background: radial-gradient(closest-side, rgb(52 138 156 / 0.2), transparent);
+    background: radial-gradient(closest-side, rgb(var(--teal) / 0.2), transparent);
     right: -8%;
     top: 4%;
   }
@@ -432,7 +448,7 @@
   .leader-sweep {
     aspect-ratio: 1;
     /* The sharp edge leads as it turns clockwise, and the light fades away behind it. */
-    background: conic-gradient(from 0deg, transparent 74%, rgb(255 255 255 / 0.14));
+    background: conic-gradient(from 0deg, transparent 74%, rgb(var(--ember) / 0.2));
     border-radius: 50%;
     inline-size: 38.75%;
     left: 30.625%;
@@ -470,7 +486,7 @@
 
   /* An editor's scrub line runs along the frame's bottom edge on hover, and snaps back when the pointer leaves. */
   .scrub {
-    background: var(--text-1);
+    background: linear-gradient(to right, rgb(var(--ember)), var(--hot));
     block-size: 2px;
     inset: auto 0 0;
     position: absolute;
@@ -530,26 +546,26 @@
     z-index: 10;
   }
 
-  /* The play button: smoked glass with a fine lit edge, turning solid white under the pointer. */
+  /* The play button: the site's button as a circle, with the triangle catching the ember under the pointer. */
   .play-disc {
     --disc: clamp(3.25rem, 11cqw, 5.5rem);
     align-items: center;
-    -webkit-backdrop-filter: blur(12px) saturate(1.3);
-    backdrop-filter: blur(12px) saturate(1.3);
-    background: rgb(12 13 17 / 0.5);
+    background:
+      linear-gradient(var(--glass), var(--glass)) padding-box,
+      linear-gradient(115deg, var(--hot) 0%, rgb(var(--ember)) 22%, rgb(var(--ember) / 0.5) 58%, rgb(var(--teal) / 0.45) 100%) border-box;
     block-size: var(--disc);
+    border: 1.5px solid transparent;
     border-radius: 50%;
     box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.32),
-      inset 0 1px 1px rgb(255 255 255 / 0.22),
+      -4px 0 14px -3px rgb(var(--ember) / 0.6),
+      0 0 20px -6px rgb(var(--ember) / 0.42),
       0 12px 32px -6px rgb(0 0 0 / 0.6);
     color: #fff;
     display: flex;
     inline-size: var(--disc);
     justify-content: center;
     transition:
-      background-color 200ms var(--ease-ui),
-      box-shadow 200ms var(--ease-ui),
+      box-shadow 240ms var(--ease-ui),
       color 200ms var(--ease-ui),
       opacity 240ms var(--ease-ui),
       scale 420ms var(--ease-settle);
@@ -565,18 +581,18 @@
     scale: 0.96;
   }
 
-  /* Pointing shows the controls. Touch has no pointing, so its play button stays, and it skips the glass to keep phones smooth.
-     The white state lives here too, because a phone keeps a tapped button in :hover until the next tap somewhere else. */
+  /* Pointing shows the controls. Touch has no pointing, so its play button stays.
+     The lit state lives here too, because a phone keeps a tapped button in :hover until the next tap somewhere else. */
   @media (hover: hover) {
     button:hover > .play-disc,
     a:hover > .play-disc,
     button:focus-visible > .play-disc,
     a:focus-visible > .play-disc {
-      background: #fff;
       box-shadow:
-        0 0 0 6px rgb(255 255 255 / 0.14),
+        -6px 0 22px -2px rgb(var(--ember) / 0.9),
+        0 0 34px -4px rgb(var(--ember) / 0.62),
         0 14px 36px -6px rgb(0 0 0 / 0.65);
-      color: #0a0b0e;
+      color: rgb(var(--ember));
       scale: 1.07;
     }
 
@@ -587,12 +603,6 @@
   }
 
   @media (hover: none) {
-    .play-disc {
-      -webkit-backdrop-filter: none;
-      backdrop-filter: none;
-      background: rgb(12 13 17 / 0.62);
-    }
-
     .card:not(:has(.player)):active {
       transform: scale(0.985);
       transition-duration: var(--dur-ui);
@@ -602,12 +612,13 @@
   /* Go straight to full size from a card. Only where there is a pointer: on touch it is one tap away in the player. */
   .card-expand {
     align-items: center;
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    background: rgb(12 13 17 / 0.5);
+    background:
+      linear-gradient(var(--glass), var(--glass)) padding-box,
+      linear-gradient(95deg, rgb(var(--ember) / 0.9) 0%, rgb(var(--ember) / 0.42) 40%, rgb(var(--teal) / 0.35) 100%) border-box;
     block-size: 2.5rem;
-    border-radius: 6px;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.24);
+    border: 1.5px solid transparent;
+    border-radius: 50%;
+    box-shadow: -3px 0 10px -4px rgb(var(--ember) / 0.45);
     color: #fff;
     cursor: pointer;
     display: none;
@@ -618,7 +629,7 @@
     right: 0.625rem;
     top: 0.625rem;
     transition:
-      background-color 200ms var(--ease-ui),
+      box-shadow 240ms var(--ease-ui),
       color 200ms var(--ease-ui),
       opacity 240ms var(--ease-ui);
     z-index: 11;
@@ -635,8 +646,10 @@
     }
 
     .card-expand:hover {
-      background: #fff;
-      color: #0a0b0e;
+      box-shadow:
+        -4px 0 14px -3px rgb(var(--ember) / 0.75),
+        0 0 20px -6px rgb(var(--ember) / 0.45);
+      color: rgb(var(--ember));
     }
   }
 
@@ -702,7 +715,7 @@
 
   /* Subtitles on: a short bar under the icon, as in most players. */
   .player-control.is-on::after {
-    background: #fff;
+    background: rgb(var(--ember));
     block-size: 2px;
     border-radius: 1px;
     content: "";
@@ -735,7 +748,7 @@
   .player-range::-webkit-slider-runnable-track {
     background: linear-gradient(
       to right,
-      #fff var(--fill, 0%),
+      rgb(var(--ember)) var(--fill, 0%),
       rgb(255 255 255 / 0.42) var(--fill, 0%) var(--loaded, 0%),
       rgb(255 255 255 / 0.22) var(--loaded, 0%)
     );
@@ -747,7 +760,7 @@
   .player-range::-moz-range-track {
     background: linear-gradient(
       to right,
-      #fff var(--fill, 0%),
+      rgb(var(--ember)) var(--fill, 0%),
       rgb(255 255 255 / 0.42) var(--fill, 0%) var(--loaded, 0%),
       rgb(255 255 255 / 0.22) var(--loaded, 0%)
     );
@@ -953,10 +966,10 @@
 
   /* The record light beside the running timecode. */
   .rec-light {
-    background: #ff4b3e;
+    background: rgb(var(--ember));
     block-size: 7px;
     border-radius: 50%;
-    box-shadow: 0 0 10px rgb(255 75 62 / 0.75);
+    box-shadow: 0 0 10px rgb(var(--ember) / 0.8);
     inline-size: 7px;
   }
 
@@ -1000,7 +1013,7 @@
 
   .film-word-outline {
     color: transparent;
-    -webkit-text-stroke: 1px var(--text-3);
+    -webkit-text-stroke: 1px rgb(var(--ember) / 0.8);
   }
 
   .contact-action {
@@ -1041,12 +1054,12 @@
 
   /* The lit copy of each letter sits on top, so lighting one up only changes opacity. */
   .end-title-letter::after {
-    background: linear-gradient(to bottom, #ffffff 22%, #d4d7dc 62%, #9a9ea6 100%);
+    background: linear-gradient(to bottom, #ffffff 26%, #f8ebdd 60%, #e2ae8a 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
     content: attr(data-letter);
-    filter: drop-shadow(0 0 26px rgb(255 255 255 / 0.22));
+    filter: drop-shadow(0 0 26px rgb(var(--ember) / 0.32));
     inset: 0;
     opacity: 0;
     pointer-events: none;
@@ -1075,58 +1088,21 @@
     opacity: 0.6;
   }
 
-  /* The header's timeline: fine ticks with a taller one every fifth, and a playhead that follows the scroll. It
-     sits in the bar between the name and the button, and along the bar's bottom edge on a phone. */
+  /* The playhead of the page: a spark that runs along the nav's bottom edge as the page scrolls, top to bottom. */
   .header-timeline {
-    block-size: 6px;
+    block-size: 2px;
+    bottom: -1.5px;
     container-type: inline-size;
-    inset: auto 12px 5px;
-    position: absolute;
-  }
-
-  .header-timeline::before {
-    background:
-      repeating-linear-gradient(to right, rgb(255 255 255 / 0.3) 0 1px, transparent 1px 60px) 0 100% / 100% 100% no-repeat,
-      repeating-linear-gradient(to right, rgb(255 255 255 / 0.16) 0 1px, transparent 1px 12px) 0 100% / 100% 50% no-repeat;
-    content: "";
-    inset: 0;
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
-    mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+    inset-inline: 1.75rem;
+    overflow: hidden;
     position: absolute;
   }
 
   .header-playhead {
-    background: var(--text-1);
-    box-shadow: 0 0 10px rgb(255 255 255 / 0.45);
-    inline-size: 2px;
-    inset: 0 auto 0 0;
+    background: linear-gradient(to right, transparent, rgb(var(--ember)), var(--hot));
+    inline-size: 6rem;
+    inset: 0 auto 0 -6rem;
     position: absolute;
-  }
-
-  /* The same triangular head as the brand mark's playhead. */
-  .header-playhead::before {
-    background: var(--text-1);
-    block-size: 6px;
-    clip-path: polygon(0 0, 100% 0, 50% 100%);
-    content: "";
-    inline-size: 8px;
-    left: -3px;
-    position: absolute;
-    top: -5px;
-  }
-
-  @media (min-width: 640px) {
-    .header-timeline {
-      block-size: 16px;
-      flex: 1;
-      inset: auto;
-      min-inline-size: 0;
-      position: relative;
-    }
-
-    .header-playhead::before {
-      top: -4px;
-    }
   }
 
   /* A menu in the header bar: a raised plate that drops from its button. */
@@ -1213,9 +1189,9 @@
   }
 
   .meter-fill {
-    background: linear-gradient(to right, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.3));
-    border-inline-end: 2px solid var(--text-1);
-    box-shadow: 4px 0 10px -3px rgb(255 255 255 / 0.5);
+    background: linear-gradient(to right, rgb(var(--ember) / 0.08), rgb(var(--ember) / 0.42));
+    border-inline-end: 2px solid rgb(var(--ember));
+    box-shadow: 4px 0 10px -3px rgb(var(--ember) / 0.7);
     inset: 0 auto 0 0;
     min-inline-size: 2px;
     position: absolute;
@@ -1230,8 +1206,8 @@
   .frame-chip,
   .status-pill {
     align-items: center;
-    background: rgb(9 10 13 / 0.74);
-    border-radius: 3px;
+    background: rgb(7 8 11 / 0.78);
+    border-radius: 999px;
     box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.13);
     color: var(--text-1);
     display: inline-flex;
@@ -1254,8 +1230,8 @@
   }
 
   .status-pill[data-status="published"] .status-dot {
-    background: var(--text-1);
-    box-shadow: 0 0 8px rgb(255 255 255 / 0.85);
+    background: rgb(var(--ember));
+    box-shadow: 0 0 8px rgb(var(--ember) / 0.9);
   }
 
   /* Somewhere to drop a file: a dashed outline around a shallow well. */
@@ -1271,14 +1247,14 @@
   }
 
   .dropzone.is-over {
-    background: rgb(255 255 255 / 0.06);
-    outline-color: var(--text-1);
+    background: rgb(var(--ember) / 0.08);
+    outline-color: rgb(var(--ember));
   }
 
   /* A small item set into its panel. */
   .well {
     background: rgb(9 10 13 / 0.45);
-    border-radius: 3px;
+    border-radius: 999px;
     box-shadow:
       inset 0 1px 3px rgb(0 0 0 / 0.5),
       inset 0 0 0 1px rgb(255 255 255 / 0.05);

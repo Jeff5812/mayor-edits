@@ -45,7 +45,7 @@ export default async function AdminLoginPage({
       <div aria-hidden="true" className="room-light anim-lights" />
       <div className="page-shell flex items-center justify-between gap-4 pt-3 sm:pt-5">
         <p className="inline-flex items-center gap-2 text-bone">
-          <BrandMark />
+          <BrandMark className="text-ember" />
           <span className="display text-[1.625rem] leading-none">{SITE.name}</span>
         </p>
         <Link href="/" className="group inline-flex min-h-11 items-center gap-2 text-sm text-ash transition-colors duration-200 hover:text-bone">

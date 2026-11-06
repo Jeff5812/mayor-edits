@@ -59,6 +59,34 @@ test("anonymous visitors cannot change anything in the database or storage", asy
   expect(await drafts.json()).toEqual([]);
 });
 
+// The public routes are the only server code a visitor can reach. Bad or hostile input must get a plain refusal, never an
+// error that says how the site is built, and nothing that should stay private may be cached on the way.
+test("public routes refuse bad input and give nothing away", async ({ request }) => {
+  const unknown = "00000000-0000-4000-8000-000000000000";
+  for (const path of ["/api/playback/not-a-uuid", `/api/playback/${unknown}`, "/api/playback/..%2F..%2Fetc%2Fpasswd"]) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(404);
+    expect(response.headers()["cache-control"], path).toContain("no-store");
+    expect(await response.text(), path).not.toMatch(/r2\.cloudflarestorage|supabase|stack|Error:/i);
+  }
+  expect(await (await request.get("/api/subtitles/not-a-uuid")).json()).toEqual({ languages: [] });
+  expect(await (await request.get(`/api/subtitles/${unknown}`)).json()).toEqual({ languages: [] });
+  for (const path of [`/api/subtitles/${unknown}/en`, `/api/subtitles/${unknown}/zz`, `/api/subtitles/${unknown}/..%2F..%2Fsecrets`, "/api/subtitles/not-a-uuid/en"]) {
+    expect((await request.get(path)).status(), path).toBe(404);
+  }
+  // The routes only read. Writing to them is refused outright.
+  expect((await request.post(`/api/playback/${unknown}`)).status()).toBe(405);
+  expect((await request.delete(`/api/subtitles/${unknown}/en`)).status()).toBe(405);
+  // The video bucket is private: without a signature it answers nothing, not even a list of files.
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const bucket = process.env.R2_BUCKET;
+  if (accountId && bucket) {
+    const bare = await request.get(`https://${accountId}.r2.cloudflarestorage.com/${bucket}/`);
+    expect(bare.status()).toBeGreaterThanOrEqual(400);
+    expect(await bare.text()).not.toContain("<Key>");
+  }
+});
+
 test("the owner uploads a video with visible progress, and it stays private as a draft", async ({ page }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Add a project" }).click();

@@ -9,7 +9,7 @@ function Run() {
       {WORDS.map((word, index) => (
         <span key={word} className="contents">
           <span className={index % 2 === 0 ? "film-word" : "film-word film-word-outline"}>{word}</span>
-          <BrandMark width="22" height="22" className="shrink-0 text-white/30" />
+          <BrandMark width="22" height="22" className="shrink-0 text-ember/70" />
         </span>
       ))}
     </div>

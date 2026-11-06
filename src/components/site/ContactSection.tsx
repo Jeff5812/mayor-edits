@@ -49,7 +49,7 @@ function ContactAction({
     <a
       href={href}
       {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
-      className={buttonClass(variant, "reveal-scroll group !items-center !justify-between !gap-5 !px-5 !py-5 text-left !font-normal sm:!px-7 sm:!py-6")}
+      className={buttonClass(variant, "reveal-scroll group !items-center !justify-between !gap-5 !px-7 !py-5 text-left !font-normal sm:!px-10 sm:!py-6")}
     >
       <span className="min-w-0">
         <span className="contact-action block">{action}</span>

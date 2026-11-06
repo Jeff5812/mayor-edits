@@ -53,7 +53,10 @@ in the browser to at most 1600 px and about 350 KB, because Supabase Free has no
 
 Dark and cinematic. Display type is League Gothic in capitals, body is Onest, and timecode digits are Chivo Mono. Depth comes
 from one material, `.plate`, and one button surface, `.btn`, both in [globals.css](../src/app/globals.css). Change them there
-and every card, panel and button follows, admin included. Life comes from the language of editing: the header's timeline
+and every card, panel and button follows, admin included. The black never sits alone: its partners are the two colours of a film
+grade, ember (`--ember`, the one accent) and teal (the far end of its light). Every button is a pill of black glass with a lit
+edge, white-hot at the left and cooling to teal, and the nav is the same pill at full length. Panels pick up the same light from
+their corners, and headlines warm to copper at their foot. Life comes from the language of editing: the header's timeline
 and scroll playhead, the running timecode, the film strip, the leader sweep and light leak on empty frames, and letters
 that catch the light. Everything moving is transform or opacity, and all of it stops for people who ask for less motion.
 

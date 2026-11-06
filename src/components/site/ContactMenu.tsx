@@ -12,7 +12,7 @@ function MenuLink({ href, external, icon, label, value }: { href: string; extern
       {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
       className="group flex items-center gap-3 rounded-[3px] px-3 py-2.5 transition-colors duration-200 hover:bg-white/[0.07] focus-visible:bg-white/[0.07]"
     >
-      <span className="btn-outline flex size-9 shrink-0 items-center justify-center rounded-[3px]">{icon}</span>
+      <span className="btn-outline flex size-9 shrink-0 items-center justify-center rounded-full">{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-bone">{label}</span>
         <span className="block text-[0.8125rem] text-ash [overflow-wrap:anywhere]">{value}</span>
