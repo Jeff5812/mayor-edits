@@ -20,9 +20,12 @@ commit on `main`. Where they disagree with this file, this file wins.
 `portfolio` tag. Every admin change expires that tag, so published changes appear at once with no redeploy, and ordinary
 visits never touch the database. The page never reads cookies and never receives a video's storage key.
 
-**Reel layout.** [PortfolioGrid.tsx](../src/components/site/PortfolioGrid.tsx) always shows at least four positions: the
-lead beside the headline, then three across. A position with no video shows only the default frame, with no name or
-running time. Those appear only on a real project, which the database guarantees has a finished video.
+**Reel layout.** [PortfolioGrid.tsx](../src/components/site/PortfolioGrid.tsx) shows only the films there are. The first, the
+featured one, is the lead: the one big frame on every screen, beside the headline on desktop. On a phone and a tablet each other
+film is a row beneath it, its frame beside its title. On desktop the others fill rows of two, then three, so a row is never left
+half empty ([reel-layout.ts](../src/components/site/reel-layout.ts), with a test). A lone second film takes the lead's width
+beneath it, and the headline stays beside the two as the page scrolls. The default frame shows only while there is no film at
+all, and as the signed-in owner's extra frame to upload into.
 
 **Upload.** The browser asks `prepareVideoUpload` what to send. It checks the admin, then returns signed links for each
 missing 8 MiB part. The browser sends the parts straight to R2, three at a time, with retries
@@ -57,7 +60,7 @@ and every card, panel and button follows, admin included. The black never sits a
 grade, ember (`--ember`, the one accent) and teal (the far end of its light). Every button is a pill of black glass with a lit
 edge, white-hot at the left and cooling to teal, and the nav is the same pill at full length. Panels pick up the same light from
 their corners, and headlines warm to copper at their foot. Life comes from the language of editing: the header's timeline
-and scroll playhead, the running timecode, the film strip, the leader sweep and light leak on empty frames, and letters
+and scroll playhead, the running timecode, the film strip, the leader sweep and light leak on an empty frame, and letters
 that catch the light. Everything moving is transform or opacity, and all of it stops for people who ask for less motion.
 
 The admin ("the cutting room") is the same design, not a second one: the same header bar, cards, frames and buttons, with its
@@ -71,6 +74,12 @@ The owner opens `/admin` on any device, by address or through the small "Owner s
 address quiet is not what protects anything, so the link costs nothing: every admin page and action checks the session and
 `is_admin()` on the server. Signing in is per device, and public sign-ups are off. To add an administrator, create the user in
 Supabase (Authentication, Users), then add their id to `public.admins`.
+
+A forgotten password is handled on the sign-in page: the owner asks for a link, and it opens the page for choosing a new one.
+The reply is the same for any address. If Supabase sends a link to the site's plain address instead, which happens for links
+sent from its dashboard, [AuthLinkHandoff](../src/components/site/AuthLinkHandoff.tsx) passes it on to that page. Supabase's
+built-in email only reaches members of the project's team, so the emails need the setup in
+[PASSWORD_EMAILS.md](PASSWORD_EMAILS.md).
 
 ## Rules that are not obvious from the code
 
@@ -88,6 +97,10 @@ Nothing plays or downloads when the page loads. [CardPlayer](../src/components/v
 at it shows the play button and a few silent seconds of the video, and pressing play starts it there, with sound and full controls
 ([VideoPlayer](../src/components/video/VideoPlayer.tsx)), and a button for full screen. One video plays at a time, and it pauses if
 scrolled away. Previews skip phones, people who asked for less motion, and data-saver connections.
+
+A touch screen has no hover and a phone's frames are too small to watch in, so there play opens the film full screen, and leaving
+full screen puts the card back. An iPhone cannot put a page in full screen, so its film leaves out `playsInline` and opens the
+iPhone's own player. Each film remembers where it was left during the visit, so pressing play again carries on from there.
 
 ## Subtitles
 

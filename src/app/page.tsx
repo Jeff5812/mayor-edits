@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AuthLinkHandoff } from "@/components/site/AuthLinkHandoff";
 import { ContactSection } from "@/components/site/ContactSection";
 import { EndTitle } from "@/components/site/EndTitle";
 import { FilmStrip } from "@/components/site/FilmStrip";
@@ -55,6 +56,7 @@ export default async function Home() {
         {leadPoster ? <img src={leadPoster} alt="" decoding="async" /> : null}
       </div>
       <PointerDepth />
+      <AuthLinkHandoff />
       <SiteHeader />
       <main>
         <section id="work" aria-label="The reel" className="page-shell pb-10 pt-4 sm:pb-12 sm:pt-5">
