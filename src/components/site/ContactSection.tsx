@@ -49,11 +49,11 @@ function ContactAction({
     <a
       href={href}
       {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
-      className={buttonClass(variant, "reveal-scroll group !items-center !justify-between !gap-5 !px-7 !py-5 text-left !font-normal sm:!px-10 sm:!py-6")}
+      className={buttonClass(variant, "reveal-scroll group !items-center !justify-between !gap-4 !px-6 !py-4 text-left !font-normal sm:!gap-5 sm:!px-10 sm:!py-6")}
     >
       <span className="min-w-0">
         <span className="contact-action block">{action}</span>
-        <span className="mt-2 flex items-center gap-2 text-[0.8125rem] font-medium opacity-75 [overflow-wrap:anywhere] sm:text-sm">
+        <span className="mt-2 flex items-center gap-2 whitespace-nowrap text-[0.8125rem] font-medium opacity-75 sm:text-sm">
           {icon}
           {value}
         </span>
@@ -66,7 +66,7 @@ function ContactAction({
 export function ContactSection() {
   return (
     <section id="contact" aria-labelledby="contact-title" className="page-shell pb-2">
-      <div className="plate contact-panel grid gap-8 p-6 sm:p-10 lg:grid-cols-6 lg:items-center lg:gap-x-6 lg:p-14">
+      <div className="plate contact-panel grid gap-7 p-5 sm:gap-8 sm:p-10 lg:grid-cols-6 lg:items-center lg:gap-x-6 lg:p-14">
         <h2 id="contact-title" className="display display-section display-lift reveal-scroll max-w-[9em] lg:col-span-3">
           <span className="display-deep">Got raw footage? Let&apos;s make the cut.</span>
         </h2>

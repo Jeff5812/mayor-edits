@@ -24,7 +24,7 @@
   --glass: #07080b; /* The black inside a button. */
 
   --gutter: 20px;
-  --hero-size: 19.2vw;
+  --hero-size: 15.6vw;
   --film-run: 1400px; /* An exact multiple of the 28px sprocket spacing, so the holes line up when the loop restarts. */
   --film-time: 35s; /* In proportion to the distance, so the strip runs at the same speed on every screen. */
   --content-max: 1728px;
@@ -509,13 +509,6 @@
   /* A frame's stage. Its width sets the size of what sits on it, so a play button suits the lead and a small card alike. */
   .frame-stage {
     container-type: inline-size;
-  }
-
-  /* On a phone, empty frames sit in pairs to keep the page short. An odd one out takes the whole row, so there is never a gap. */
-  @media (max-width: 639px) {
-    .card[data-pair]:nth-last-child(1 of .card[data-pair]):nth-child(odd of .card[data-pair]) {
-      grid-column: 1 / -1;
-    }
   }
 
   /* A few silent seconds of the video, over the poster, while a card is pointed at. */
@@ -1022,6 +1015,14 @@
     letter-spacing: 0.01em;
     line-height: 1;
     text-transform: uppercase;
+  }
+
+  /* On a phone the actions read at a moderate size, so the button stays a button and its details never break mid-word. */
+  @media (max-width: 639px) {
+    .contact-action {
+      font-size: 1.875rem;
+      line-height: 1.02;
+    }
   }
 
   /* The name as an end title, across the full width of the page. Tall enough a box that no letter is clipped. */

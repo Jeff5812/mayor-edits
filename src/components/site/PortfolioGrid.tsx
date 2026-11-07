@@ -16,8 +16,22 @@ const SLOT_CLASS: Record<Slot, string> = {
   first: "col-span-2 lg:col-span-4",
   third: "col-span-2 sm:col-span-1 lg:col-span-2",
 };
-// A frame with nothing to show takes half the width on a phone, so a new reel is not a long scroll past empty frames.
-const EMPTY_SLOT_CLASS: Record<Slot, string> = { ...SLOT_CLASS, third: "col-span-1 lg:col-span-2" };
+// Smaller screens show only enough empty frames to say the reel goes on: a phone a pair, a tablet two rows. Real videos are
+// never left out. Desktop shows every position, because its rows of three are complete by construction.
+const PHONE_EMPTY_LIMIT = 2;
+const TABLET_EMPTY_LIMIT = 4;
+
+// The classes for one empty frame in the rows below the lead: shown or hidden at each size, and never leaving half a row.
+function emptyThirdClass(index: number, empties: number, realThirds: number): string {
+  const phone = Math.min(empties, PHONE_EMPTY_LIMIT);
+  let tablet = Math.min(empties, TABLET_EMPTY_LIMIT);
+  if ((realThirds + tablet) % 2 === 1) tablet -= 1;
+  return [
+    index < phone ? (phone === 1 ? "col-span-2" : "col-span-1") : "max-sm:hidden",
+    index < tablet ? "sm:col-span-1" : "sm:max-lg:hidden",
+    "lg:col-span-2",
+  ].join(" ");
+}
 
 // Rows are always completed with default frames, so the reel never ends in a gap.
 function slotsFor(projects: number): Slot[] {
@@ -30,13 +44,12 @@ function revealClass(order: number) {
 }
 
 // A position in the reel with no video yet: only the default frame, with no name or running time to invent.
-function EmptySlot({ slot, order }: { slot: Slot; order: number }) {
+function EmptySlot({ className, order }: { className: string; order: number }) {
   return (
     <div
       data-empty
-      data-pair={slot === "third" ? "" : undefined}
       style={{ "--order": order } as CSSProperties}
-      className={`card plate relative isolate p-1.5 sm:p-2 ${EMPTY_SLOT_CLASS[slot]} ${revealClass(order)}`}
+      className={`card plate relative isolate p-1.5 sm:p-2 ${className} ${revealClass(order)}`}
     >
       <div className="frame-stage relative aspect-video w-full">
         <div className="frame-inner">
@@ -105,20 +118,26 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
 
 export function PortfolioGrid({ projects, children }: { projects: PublicProject[]; children: ReactNode }) {
   const slots = slotsFor(projects.length);
+  const empties = slots.length - projects.length;
+  const realThirds = Math.max(0, projects.length - 1);
   return (
-    <div className="grid grid-cols-2 items-start gap-4 sm:gap-5 lg:grid-cols-6 lg:gap-6">
+    <div className="grid grid-cols-2 items-start gap-4 sm:gap-6 lg:grid-cols-6 lg:gap-6">
       {children}
       {slots.map((slot, index) =>
         projects[index] ? (
           <ProjectCard key={projects[index].id} project={projects[index]} slot={slot} order={index} />
         ) : (
-          <EmptySlot key={`empty-${index}`} slot={slot} order={index} />
+          <EmptySlot
+            key={`empty-${index}`}
+            className={slot === "first" ? SLOT_CLASS.first : emptyThirdClass(index - projects.length, empties, realThirds)}
+            order={index}
+          />
         ),
       )}
       {/* When every position is taken, the owner still gets one more to upload into. Visitors never see it. */}
       {projects.length >= slots.length ? (
         <OwnerOnly>
-          <EmptySlot slot="third" order={slots.length} />
+          <EmptySlot className={SLOT_CLASS.third} order={slots.length} />
         </OwnerOnly>
       ) : null}
       <OwnerUploadDialog />

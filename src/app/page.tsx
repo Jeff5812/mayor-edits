@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 // Takes the column beside the lead frame on desktop, so the work is on screen from the very top of the page.
 function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="col-span-2 lg:py-2">
+    <section aria-labelledby="hero-title" className="col-span-2 pb-3 pt-2 sm:pb-4 sm:pt-3 lg:py-2">
       <div>
         <div className="anim-rise flex items-center justify-between gap-4">
           <p className="label">Video editing studio</p>
