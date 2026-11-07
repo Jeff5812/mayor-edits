@@ -7,7 +7,6 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { PASSWORD_MIN_LENGTH, explainLinkError, parseAuthLink, validateNewPassword } from "@/app/admin/login/auth-link";
 import { explainFailure } from "@/lib/media/failures";
 import { isSupabaseConfigured, supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
-import { RequestLinkPanel } from "./LoginForm";
 import { alertClass, fieldHintClass, fieldLabelClass, inputClass, primaryButtonClass, successClass } from "./styles";
 
 type Stage =
@@ -16,7 +15,7 @@ type Stage =
   | { name: "invalid"; message: string }
   | { name: "done"; message: string };
 
-const NO_LINK = "This page needs the link from your invitation or password email. Request a new one below.";
+const NO_LINK = "Sign in first to change your password. If you have forgotten it, ask your developer to reset it.";
 const NOT_CONFIGURED = "Sign-in is not available yet because Supabase is not connected to this site.";
 
 // A separate client that leaves the address bar alone: invitation links carry the session in the URL
@@ -33,7 +32,7 @@ function explainSaveError(code: string | undefined, message: string): string {
   if (code === "weak_password") return "That password is too easy to guess. Please choose a longer or less common one.";
   if (code === "same_password") return "That is your current password. Please choose a different one.";
   if (code === "session_expired" || code === "session_not_found" || code === "bad_jwt") {
-    return "This link's session has ended. Request a new link from the sign-in page.";
+    return "Your session has ended. Sign in again, then change your password.";
   }
   if (code === "over_request_rate_limit") return "Too many attempts. Please wait a few minutes.";
   console.error("[auth] password update failed:", message);
@@ -157,7 +156,6 @@ export function SetPasswordForm() {
         <p role="alert" className={alertClass}>
           {stage.message}
         </p>
-        {stage.message !== NOT_CONFIGURED ? <RequestLinkPanel /> : null}
         <Link href="/admin/login" className="flex min-h-11 items-center justify-self-start text-sm text-ash underline underline-offset-4 hover:text-bone">
           Back to sign in
         </Link>

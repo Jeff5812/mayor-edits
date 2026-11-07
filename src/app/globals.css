@@ -53,11 +53,13 @@
   }
 }
 
-/* From here the headline stands in its own column beside the lead frame, over three lines. */
-@media (min-width: 1024px) {
+/* From here the headline stands in its own column beside the lead frame, over three lines. The same width as Tailwind's lg
+   below, which starts at 960px so a phone in "Desktop site" mode, about 980px wide, gets the desktop page too. */
+@media (min-width: 960px) {
   :root {
     --gutter: 40px;
-    --hero-size: min(7.6vw, 8.6rem);
+    /* Grows with the headline's column, a third of the page less its gaps, so "every frame" always fits it with room to spare. */
+    --hero-size: min(8.3vw - 0.66rem, 8.6rem);
   }
 }
 
@@ -75,6 +77,10 @@
   descent-override: 30.5%;
   line-gap-override: 0%;
   unicode-range: U+0000-00FF;
+}
+
+@theme {
+  --breakpoint-lg: 60rem;
 }
 
 @theme inline {
@@ -1171,7 +1177,7 @@
     }
   }
 
-  @media (min-width: 1024px) {
+  @media (min-width: 960px) {
     .readout {
       grid-template-columns: 1fr 1fr 1fr 2.4fr;
     }

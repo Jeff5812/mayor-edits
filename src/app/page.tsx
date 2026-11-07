@@ -22,10 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
 // Its one action sits beside it on a tablet, where there is room, and under it on a phone and on desktop.
 function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="pb-6 pt-2 sm:pb-8 sm:pt-3 lg:py-2">
+    <section aria-labelledby="hero-title" className="@container pb-6 pt-2 sm:pb-8 sm:pt-3 lg:py-2">
       <div className="anim-rise flex items-center justify-between gap-4">
         <p className="label">Video editing studio</p>
-        <LiveTimecode />
+        {/* The running timecode steps aside where the headline's column is too narrow for both, on the smallest desktops. */}
+        <span className="flex @max-[18rem]:hidden">
+          <LiveTimecode />
+        </span>
       </div>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-x-8 gap-y-6 lg:block">
         <h1 id="hero-title" className="display display-hero display-lift anim-playhead relative w-fit">
