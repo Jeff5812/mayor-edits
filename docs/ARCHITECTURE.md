@@ -70,8 +70,9 @@ drop area.
 
 ## How the owner gets in
 
-The owner opens `/admin` on any device, by address or by pressing the header logo three times quickly
-([BrandLink](../src/components/site/BrandLink.tsx)). The public page shows no sign-in link, at the owner's request. Keeping the
+The owner opens `/admin` on any device, by address, through the footer link "The cutting room", or by pressing the header logo
+three times quickly ([BrandLink](../src/components/site/BrandLink.tsx)). At the owner's request the public page never says
+"sign in": the footer link is worded like any studio link, and "The cutting room" is also the admin area's own name. Keeping the
 address quiet is not what protects anything: every admin page and action checks the session and `is_admin()` on the server. Signing in is per device, and public sign-ups are off. To add an administrator, create the user in
 Supabase (Authentication, Users), then add their id to `public.admins`.
 

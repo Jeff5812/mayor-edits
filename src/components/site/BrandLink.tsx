@@ -2,8 +2,8 @@
 
 import { type ReactNode, useRef } from "react";
 
-// The header's logo. One press goes back to the top. Three quick presses open the owner's sign-in, so the public page needs
-// no visible sign-in link. That only saves the owner typing the address: the admin area checks every visitor on the server.
+// The header's logo. One press goes back to the top. Three quick presses open the owner's sign-in too, besides the footer's
+// "The cutting room". Both only save typing the address: the admin area checks every visitor on the server.
 const PRESSES = 3;
 const WITHIN_MS = 1500;
 

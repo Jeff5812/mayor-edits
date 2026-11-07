@@ -74,9 +74,17 @@ export default async function Home() {
       <footer>
         <div className="page-shell flex items-center justify-between gap-4 py-6 text-sm text-mute">
           <span>{SITE.name}</span>
-          <a href="#top" className="inline-flex min-h-11 items-center text-ash hover:text-bone">
-            <span className="link-draw">Back to top</span>
-          </a>
+          <span className="flex items-center gap-5">
+            {/* The owner's way in, worded like any studio link so the page does not advertise a sign-in: "The cutting room" is
+                also the name of his admin area. A plain link, so the page never fetches it ahead of time. Everything behind it
+                checks for itself. */}
+            <a href="/admin" className="inline-flex min-h-11 items-center text-mute hover:text-bone">
+              <span className="link-draw">The cutting room</span>
+            </a>
+            <a href="#top" className="inline-flex min-h-11 items-center text-ash hover:text-bone">
+              <span className="link-draw">Back to top</span>
+            </a>
+          </span>
         </div>
       </footer>
     </div>
