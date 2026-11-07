@@ -158,7 +158,7 @@ export function SetPasswordForm() {
           {stage.message}
         </p>
         {stage.message !== NOT_CONFIGURED ? <RequestLinkPanel /> : null}
-        <Link href="/admin/login" className="justify-self-start text-sm text-ash underline underline-offset-4 hover:text-bone">
+        <Link href="/admin/login" className="flex min-h-11 items-center justify-self-start text-sm text-ash underline underline-offset-4 hover:text-bone">
           Back to sign in
         </Link>
       </div>
