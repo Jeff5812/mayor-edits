@@ -47,7 +47,8 @@ function SignInPanel() {
   );
 }
 
-export function RequestLinkPanel() {
+// `focus` moves straight to the email field when the owner has just asked for the form, which also scrolls it into view on a phone.
+export function RequestLinkPanel({ focus = false }: { focus?: boolean }) {
   const [state, action, pending] = useActionState(requestPasswordLink, INITIAL_RESET);
   const emailId = useId();
 
@@ -66,7 +67,7 @@ export function RequestLinkPanel() {
         <label htmlFor={emailId} className={fieldLabelClass}>
           Your email
         </label>
-        <input id={emailId} name="email" type="email" required autoComplete="username" className={inputClass} />
+        <input id={emailId} name="email" type="email" required autoComplete="username" autoFocus={focus} className={inputClass} />
       </div>
       {state.error ? (
         <p role="alert" className={alertClass}>
@@ -98,8 +99,8 @@ export function LoginForm() {
         {forgot ? (
           <div className="grid gap-4">
             <h2 className="text-base font-medium text-bone">Choose a new password</h2>
-            <RequestLinkPanel />
-            <button type="button" className="justify-self-start text-sm text-ash underline underline-offset-4 hover:text-bone" onClick={() => setForgot(false)}>
+            <RequestLinkPanel focus />
+            <button type="button" className="min-h-11 justify-self-start text-sm text-ash underline underline-offset-4 hover:text-bone" onClick={() => setForgot(false)}>
               Back to sign in
             </button>
           </div>
