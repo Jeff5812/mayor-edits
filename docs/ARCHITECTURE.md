@@ -75,10 +75,11 @@ address quiet is not what protects anything, so the link costs nothing: every ad
 `is_admin()` on the server. Signing in is per device, and public sign-ups are off. To add an administrator, create the user in
 Supabase (Authentication, Users), then add their id to `public.admins`.
 
-Security is kept basic on purpose: there is one owner, and he only ever signs in. If he forgets his password, the sign-in page
-tells him to ask his developer, who sets a temporary password ([FORGOTTEN_PASSWORD.md](FORGOTTEN_PASSWORD.md)). There is no
-password email to set up. A sign-in link sent from the Supabase dashboard still works: if it lands on the site's plain address,
-[AuthLinkHandoff](../src/components/site/AuthLinkHandoff.tsx) passes it on to the page for choosing a password.
+Security is kept basic on purpose: there is one owner, and he only ever signs in. If he forgets his password, "Forgot your
+password?" emails him a link to choose a new one, with no one else needed. Supabase sends it through a Gmail account the
+developer set up once, because its built-in sender only reaches the Supabase team ([FORGOTTEN_PASSWORD.md](FORGOTTEN_PASSWORD.md)).
+A link that lands on the site's plain address, as links sent from the Supabase dashboard do, is passed on to the page for
+choosing a password by [AuthLinkHandoff](../src/components/site/AuthLinkHandoff.tsx).
 
 ## Rules that are not obvious from the code
 
