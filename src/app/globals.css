@@ -564,6 +564,13 @@
       scale 420ms var(--ease-settle);
   }
 
+  /* A small frame, like a film's row on a phone, gets a smaller button, so the picture still shows around it. */
+  @container (max-width: 15rem) {
+    .play-disc {
+      --disc: 2.5rem;
+    }
+  }
+
   /* The triangle's three points are the same distance from the middle of its box, so it needs no nudging to sit true in the circle. */
   .play-glyph {
     block-size: 46%;
@@ -602,7 +609,7 @@
     }
   }
 
-  /* Go straight to full size from a card. Only where there is a pointer: on touch it is one tap away in the player. */
+  /* Go straight to full size from a card. Only where there is a pointer: on touch, play itself opens full screen. */
   .card-expand {
     align-items: center;
     background:

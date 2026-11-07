@@ -54,15 +54,21 @@ interface WebkitVideo extends HTMLVideoElement {
   webkitEnterFullscreen?: () => void;
 }
 
+// Where each film was left during this visit, so pressing play again carries on from there.
+const resumeAt = new Map<string, number>();
+
 export function VideoPlayer({
   project,
   autoStart = false,
   startFullscreen = false,
+  onFullscreenExit,
 }: {
   project: PublicProject;
   // True when the viewer has just pressed play to open this player.
   autoStart?: boolean;
   startFullscreen?: boolean;
+  // Called when the viewer leaves full screen, so a touch screen's card can come back.
+  onFullscreenExit?: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<WebkitVideo>(null);
@@ -71,7 +77,7 @@ export function VideoPlayer({
   const lastPointer = useRef("mouse");
   const menusOpen = useRef(0);
   // Where to carry on, and whether to keep playing, if a signed link expires part-way through.
-  const lastTime = useRef(0);
+  const lastTime = useRef(resumeAt.get(project.id) ?? 0);
   const wantsPlay = useRef(false);
   const refreshes = useRef(0);
   const refreshedAt = useRef(0);
@@ -204,10 +210,24 @@ export function VideoPlayer({
   }, []);
 
   useEffect(() => {
-    const update = () => setFullscreen(document.fullscreenElement === rootRef.current);
+    const root = rootRef.current;
+    const video = videoRef.current;
+    let wasFullscreen = false;
+    const update = () => {
+      const now = document.fullscreenElement === root;
+      setFullscreen(now);
+      if (wasFullscreen && !now) onFullscreenExit?.();
+      wasFullscreen = now;
+    };
+    // An iPhone's own full screen, the only one it has.
+    const nativeEnd = () => onFullscreenExit?.();
     document.addEventListener("fullscreenchange", update);
-    return () => document.removeEventListener("fullscreenchange", update);
-  }, []);
+    video?.addEventListener("webkitendfullscreen", nativeEnd);
+    return () => {
+      document.removeEventListener("fullscreenchange", update);
+      video?.removeEventListener("webkitendfullscreen", nativeEnd);
+    };
+  }, [onFullscreenExit]);
 
   // A video should not keep talking after it has been scrolled away.
   useEffect(() => {
@@ -417,11 +437,12 @@ export function VideoPlayer({
         Space or K plays and pauses. Left and right arrows skip 5 seconds. M mutes. F goes full screen.
       </p>
 
-      {/* No source at all until someone presses play. */}
+      {/* No source at all until someone presses play. An iPhone cannot put the page itself in full screen, so a film
+          asked for full screen leaves out playsInline, and the iPhone opens its own full-screen player when it starts. */}
       <video
         ref={videoRef}
         preload="none"
-        playsInline
+        playsInline={!startFullscreen}
         poster={project.poster_url ?? undefined}
         data-testid="video-element"
         className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
@@ -443,7 +464,10 @@ export function VideoPlayer({
         onTimeUpdate={(event) => {
           const now = event.currentTarget.currentTime;
           setTime(now);
-          if (now > 0) lastTime.current = now;
+          if (now > 0) {
+            lastTime.current = now;
+            resumeAt.set(project.id, now);
+          }
           // Real progress past the point of failure means the fresh link worked. A later expiry then
           // gets its own fresh link, while a file that never plays stops after one.
           if (refreshes.current > 0 && now > refreshedAt.current + 1) refreshes.current = 0;
@@ -465,6 +489,7 @@ export function VideoPlayer({
         onEnded={() => {
           wantsPlay.current = false;
           lastTime.current = 0;
+          resumeAt.delete(project.id);
           setPlaying(false);
           setControlsVisible(true);
         }}

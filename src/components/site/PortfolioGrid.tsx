@@ -4,47 +4,34 @@ import { formatClock } from "@/lib/media/format";
 import type { PublicProject } from "@/types/domain";
 import { DefaultFrame } from "./DefaultFrame";
 import { OwnerEditLink, OwnerOnly, OwnerUploadButton, OwnerUploadDialog } from "./OwnerControls";
+import { type ReelSize, reelSizes } from "./reel-layout";
 
-// The reel always shows at least this many frames: the lead beside the headline, then two even rows of three.
-// Positions without a video show the default frame and no text, and the signed-in owner can hover one to upload.
-const MIN_SLOTS = 7;
-const ROW = 3;
+// The reel shows the films there are, and no stand-ins. The lead, the featured film, is the one big frame on every screen.
+// On a phone and a tablet each other film is a row beneath it, its frame beside its title, so no row is ever left half
+// empty. On desktop the others fill the rows that reelSizes works out.
+const ROW_TITLE = "text-[1.375rem] leading-[1.08] sm:text-[2rem] sm:leading-9";
 
-type Slot = "first" | "third";
-
-const SLOT_CLASS: Record<Slot, string> = {
-  first: "col-span-2 lg:col-span-4",
-  third: "col-span-2 sm:col-span-1 lg:col-span-2",
+const SIZE: Record<ReelSize, { place: string; title: string; description: string }> = {
+  lead: {
+    place: "col-span-2 lg:col-span-4",
+    title: "text-[2rem] leading-[1.1] sm:text-[clamp(2.25rem,3vw,3rem)]",
+    description: "",
+  },
+  wide: {
+    place: "col-span-2 lg:col-span-4 lg:col-start-3",
+    title: `${ROW_TITLE} lg:text-[clamp(2.25rem,3vw,3rem)] lg:leading-[1.1]`,
+    description: "max-sm:hidden",
+  },
+  half: { place: "col-span-2 lg:col-span-3", title: ROW_TITLE, description: "max-sm:hidden lg:hidden" },
+  third: { place: "col-span-2 lg:col-span-2", title: ROW_TITLE, description: "max-sm:hidden lg:hidden" },
 };
-// Empty frames are part of the desktop composition, which shows every position because its rows of three are complete by
-// construction. A phone is one column of work, where an empty frame is only filler, so it shows none once there is a video, and a
-// tablet shows one row. Real videos are never left out.
-const PHONE_EMPTY_LIMIT_WITHOUT_WORK = 2;
-const TABLET_EMPTY_LIMIT = 2;
-
-// The classes for one empty frame in the rows below the lead: shown or hidden at each size, and never leaving half a row.
-function emptyThirdClass(index: number, empties: number, realThirds: number, hasWork: boolean): string {
-  const phone = hasWork ? 0 : Math.min(empties, PHONE_EMPTY_LIMIT_WITHOUT_WORK);
-  let tablet = Math.min(empties, TABLET_EMPTY_LIMIT);
-  if ((realThirds + tablet) % 2 === 1) tablet -= 1;
-  return [
-    index < phone ? (phone === 1 ? "col-span-2" : "col-span-1") : "max-sm:hidden",
-    index < tablet ? "sm:col-span-1" : "sm:max-lg:hidden",
-    "lg:col-span-2",
-  ].join(" ");
-}
-
-// Rows are always completed with default frames, so the reel never ends in a gap.
-function slotsFor(projects: number): Slot[] {
-  const rows = Math.ceil((Math.max(projects, MIN_SLOTS) - 1) / ROW);
-  return ["first", ...Array.from({ length: rows * ROW }, (): Slot => "third")];
-}
 
 function revealClass(order: number) {
   return order < 4 ? "reveal-load" : "reveal-scroll";
 }
 
-// A position in the reel with no video yet: only the default frame, with no name or running time to invent.
+// A frame with no video: only the default frame, with no name or running time to invent. Visitors see one only while
+// there is no film at all, and the signed-in owner gets one to upload into.
 function EmptySlot({ className, order }: { className: string; order: number }) {
   return (
     <div
@@ -66,20 +53,20 @@ function EmptySlot({ className, order }: { className: string; order: number }) {
   );
 }
 
-function ProjectCard({ project, slot, order }: { project: PublicProject; slot: Slot; order: number }) {
-  const large = slot === "first";
+function ProjectCard({ project, size, order }: { project: PublicProject; size: ReelSize; order: number }) {
+  const row = size !== "lead";
   const details = [project.category, project.language].filter(Boolean).join(" · ");
   return (
     <article
       data-testid="public-project"
       style={{ "--order": order } as CSSProperties}
-      className={`card plate relative isolate flex flex-col p-1.5 sm:p-2 ${SLOT_CLASS[slot]} ${revealClass(order)}`}
+      className={`card plate relative isolate flex flex-col p-1.5 sm:p-2 ${row ? "max-lg:flex-row max-lg:items-center max-lg:gap-3 sm:max-lg:gap-5" : ""} ${SIZE[size].place} ${revealClass(order)}`}
     >
       {project.poster_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={project.poster_url} alt="" aria-hidden="true" loading="lazy" decoding="async" className="card-glow" />
       ) : null}
-      <div className="frame-stage relative aspect-video w-full">
+      <div className={`frame-stage relative aspect-video w-full ${row ? "max-lg:w-[44%] max-lg:shrink-0 sm:max-lg:w-[42%]" : ""}`}>
         <div className="frame-inner">
           <DefaultFrame />
           {project.poster_url ? (
@@ -98,9 +85,9 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
         </div>
         <CardPlayer project={project} />
       </div>
-      <div className="grid gap-1 px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2">
-        <div className="flex items-baseline justify-between gap-4">
-          <h3 dir="auto" className={`display display-small min-w-0 break-words tracking-[0.018em] ${large ? "text-[2rem] leading-[1.1] sm:text-[clamp(2.25rem,3vw,3rem)]" : "text-[2rem] leading-9"}`}>
+      <div className={`grid gap-1 px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2 ${row ? "max-lg:min-w-0 max-lg:flex-1 max-lg:py-1 max-lg:ps-0" : ""}`}>
+        <div className={`flex items-baseline justify-between gap-4 ${row ? "max-sm:flex-col max-sm:items-start max-sm:gap-1.5" : ""}`}>
+          <h3 dir="auto" className={`display display-small min-w-0 break-words tracking-[0.018em] ${SIZE[size].title}`}>
             {project.title}
           </h3>
           {project.duration_seconds ? (
@@ -110,7 +97,9 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
           ) : null}
         </div>
         {details ? <p className="text-sm leading-5 text-mute transition-colors duration-200 [.card:hover_&]:text-ash">{details}</p> : null}
-        {large && project.description ? <p className="mt-1 line-clamp-2 max-w-[62ch] text-sm leading-relaxed text-mute">{project.description}</p> : null}
+        {project.description ? (
+          <p className={`mt-1 line-clamp-2 max-w-[62ch] text-sm leading-relaxed text-mute ${SIZE[size].description}`}>{project.description}</p>
+        ) : null}
       </div>
       <OwnerEditLink projectId={project.id} />
     </article>
@@ -118,29 +107,24 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
 }
 
 export function PortfolioGrid({ projects, children }: { projects: PublicProject[]; children: ReactNode }) {
-  const slots = slotsFor(projects.length);
-  const empties = slots.length - projects.length;
-  const realThirds = Math.max(0, projects.length - 1);
+  const sizes = reelSizes(projects.length);
+  // A lone second film sits under the lead, and the headline keeps it company down the page.
+  const heroClass = sizes.includes("wide") ? "col-span-2 lg:sticky lg:top-24 lg:row-span-2 lg:self-start" : "col-span-2";
   return (
     <div className="grid grid-cols-2 items-start gap-4 sm:gap-6 lg:grid-cols-6 lg:gap-6">
-      {children}
-      {slots.map((slot, index) =>
-        projects[index] ? (
-          <ProjectCard key={projects[index].id} project={projects[index]} slot={slot} order={index} />
-        ) : (
-          <EmptySlot
-            key={`empty-${index}`}
-            className={slot === "first" ? SLOT_CLASS.first : emptyThirdClass(index - projects.length, empties, realThirds, projects.length > 0)}
-            order={index}
-          />
-        ),
-      )}
-      {/* When every position is taken, the owner still gets one more to upload into. Visitors never see it. */}
-      {projects.length >= slots.length ? (
+      <div className={heroClass}>{children}</div>
+      {projects.map((project, index) => (
+        <ProjectCard key={project.id} project={project} size={sizes[index]} order={index} />
+      ))}
+      {projects.length === 0 ? (
+        // With no film yet, the lead's place keeps the default frame, so the headline is not left on its own.
+        <EmptySlot className={SIZE.lead.place} order={0} />
+      ) : (
+        // The signed-in owner always has one more frame to upload into. Visitors never see it.
         <OwnerOnly>
-          <EmptySlot className={SLOT_CLASS.third} order={slots.length} />
+          <EmptySlot className={SIZE.third.place} order={projects.length} />
         </OwnerOnly>
-      ) : null}
+      )}
       <OwnerUploadDialog />
     </div>
   );

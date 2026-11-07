@@ -13,7 +13,8 @@ const PREVIEW_SECONDS = 8;
 const PREVIEW_START_SHARE = 0.1;
 const PREVIEW_START_MAX_SECONDS = 30;
 
-type Mode = "idle" | "inline" | "fullscreen";
+// "touch" is full screen that gives the card back when the viewer leaves it.
+type Mode = "idle" | "inline" | "fullscreen" | "touch";
 
 // Only one video on the page plays at a time.
 let stopCurrent: (() => void) | null = null;
@@ -23,11 +24,18 @@ function canPreview() {
   return window.matchMedia("(hover: hover) and (prefers-reduced-motion: no-preference)").matches && !connection?.saveData;
 }
 
+// A touch screen has no pointer to hover with, and a phone's frames are too small to watch a film in.
+function playsFullscreen() {
+  return window.matchMedia("(hover: none)").matches;
+}
+
 // The frame of a video card. At rest it is only the poster and downloads nothing. Pointing at it shows the play button
 // and a few silent seconds of the video. Pressing play starts it right here, like any media player, with sound and full
-// controls. Nothing here ever starts by itself.
+// controls. On a touch screen it opens full screen instead, and leaving full screen puts the card back. Nothing here
+// ever starts by itself.
 export function CardPlayer({ project }: { project: PublicProject }) {
   const [mode, setMode] = useState<Mode>("idle");
+  const close = useCallback(() => setMode("idle"), []);
   const [previewStage, setPreviewStage] = useState<"off" | "waiting" | "showing">("off");
   const preview = useRef<HTMLVideoElement>(null);
   const timer = useRef<number | undefined>(undefined);
@@ -79,7 +87,9 @@ export function CardPlayer({ project }: { project: PublicProject }) {
     setMode(next);
   }
 
-  if (mode !== "idle") return <VideoPlayer project={project} autoStart startFullscreen={mode === "fullscreen"} />;
+  if (mode !== "idle") {
+    return <VideoPlayer project={project} autoStart startFullscreen={mode !== "inline"} onFullscreenExit={mode === "touch" ? close : undefined} />;
+  }
 
   return (
     <div className="absolute inset-0" onPointerEnter={startPreview} onPointerLeave={stopPreview}>
@@ -113,7 +123,7 @@ export function CardPlayer({ project }: { project: PublicProject }) {
         }}
       />
       <span className={`scrub ${previewStage === "waiting" ? "is-waiting" : ""}`} />
-      <button type="button" aria-label={`Play ${project.title}`} data-testid="card-play" className="card-press" onClick={() => play("inline")}>
+      <button type="button" aria-label={`Play ${project.title}`} data-testid="card-play" className="card-press" onClick={() => play(playsFullscreen() ? "touch" : "inline")}>
         <span aria-hidden="true" className="play-disc">
           <PlayIcon />
         </span>
