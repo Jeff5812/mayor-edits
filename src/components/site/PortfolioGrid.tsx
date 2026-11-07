@@ -16,14 +16,15 @@ const SLOT_CLASS: Record<Slot, string> = {
   first: "col-span-2 lg:col-span-4",
   third: "col-span-2 sm:col-span-1 lg:col-span-2",
 };
-// Smaller screens show only enough empty frames to say the reel goes on: a phone a pair, a tablet two rows. Real videos are
-// never left out. Desktop shows every position, because its rows of three are complete by construction.
-const PHONE_EMPTY_LIMIT = 2;
-const TABLET_EMPTY_LIMIT = 4;
+// Empty frames are part of the desktop composition, which shows every position because its rows of three are complete by
+// construction. A phone is one column of work, where an empty frame is only filler, so it shows none once there is a video, and a
+// tablet shows one row. Real videos are never left out.
+const PHONE_EMPTY_LIMIT_WITHOUT_WORK = 2;
+const TABLET_EMPTY_LIMIT = 2;
 
 // The classes for one empty frame in the rows below the lead: shown or hidden at each size, and never leaving half a row.
-function emptyThirdClass(index: number, empties: number, realThirds: number): string {
-  const phone = Math.min(empties, PHONE_EMPTY_LIMIT);
+function emptyThirdClass(index: number, empties: number, realThirds: number, hasWork: boolean): string {
+  const phone = hasWork ? 0 : Math.min(empties, PHONE_EMPTY_LIMIT_WITHOUT_WORK);
   let tablet = Math.min(empties, TABLET_EMPTY_LIMIT);
   if ((realThirds + tablet) % 2 === 1) tablet -= 1;
   return [
@@ -99,7 +100,7 @@ function ProjectCard({ project, slot, order }: { project: PublicProject; slot: S
       </div>
       <div className="grid gap-1 px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2">
         <div className="flex items-baseline justify-between gap-4">
-          <h3 dir="auto" className={`display display-small min-w-0 break-words tracking-[0.018em] ${large ? "text-[clamp(2.25rem,3vw,3rem)] leading-[1.1]" : "text-[2rem] leading-9"}`}>
+          <h3 dir="auto" className={`display display-small min-w-0 break-words tracking-[0.018em] ${large ? "text-[2rem] leading-[1.1] sm:text-[clamp(2.25rem,3vw,3rem)]" : "text-[2rem] leading-9"}`}>
             {project.title}
           </h3>
           {project.duration_seconds ? (
@@ -129,7 +130,7 @@ export function PortfolioGrid({ projects, children }: { projects: PublicProject[
         ) : (
           <EmptySlot
             key={`empty-${index}`}
-            className={slot === "first" ? SLOT_CLASS.first : emptyThirdClass(index - projects.length, empties, realThirds)}
+            className={slot === "first" ? SLOT_CLASS.first : emptyThirdClass(index - projects.length, empties, realThirds, projects.length > 0)}
             order={index}
           />
         ),

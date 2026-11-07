@@ -24,7 +24,7 @@
   --glass: #07080b; /* The black inside a button. */
 
   --gutter: 20px;
-  --hero-size: 15.6vw;
+  --hero-size: 14vw;
   --film-run: 1400px; /* An exact multiple of the 28px sprocket spacing, so the holes line up when the loop restarts. */
   --film-time: 35s; /* In proportion to the distance, so the strip runs at the same speed on every screen. */
   --content-max: 1728px;
@@ -47,7 +47,7 @@
 @media (min-width: 640px) {
   :root {
     --gutter: 32px;
-    --hero-size: 8.6vw;
+    --hero-size: min(8.6vw, 5rem);
     --film-run: 2800px;
     --film-time: 70s;
   }
@@ -110,7 +110,7 @@
 }
 
 @utility display-section {
-  font-size: clamp(2.875rem, 6.4vw, 7rem);
+  font-size: clamp(2.25rem, 6.4vw, 7rem);
   text-wrap: balance;
 }
 
@@ -1009,19 +1009,10 @@
     -webkit-text-stroke: 1px rgb(var(--ember) / 0.8);
   }
 
-  .contact-action {
-    font-family: var(--font-display);
-    font-size: clamp(2.25rem, 3.5vw, 3.5rem);
-    letter-spacing: 0.01em;
-    line-height: 1;
-    text-transform: uppercase;
-  }
-
-  /* On a phone the actions read at a moderate size, so the button stays a button and its details never break mid-word. */
+  /* The film strip's words, a size down on a phone so the strip stays a detail and not a headline. */
   @media (max-width: 639px) {
-    .contact-action {
+    .film-word {
       font-size: 1.875rem;
-      line-height: 1.02;
     }
   }
 

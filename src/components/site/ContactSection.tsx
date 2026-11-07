@@ -23,13 +23,15 @@ function Arrow() {
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className="size-7 shrink-0 fill-none stroke-current stroke-[2.2] transition-transform duration-500 ease-[var(--ease-settle)] group-hover:translate-x-1.5 max-[379px]:hidden"
+      className="size-5 shrink-0 fill-none stroke-current stroke-2 transition-transform duration-500 ease-[var(--ease-settle)] group-hover:translate-x-1"
     >
-      <path d="M3 12h17M13 5l7 7-7 7" />
+      <path d="M4 12h15M13 6l6 6-6 6" />
     </svg>
   );
 }
 
+// A contact button at a button's size: the icon in its own circle set into the pill's rounded end, the action in plain words,
+// and the number or address beneath it, which stays on one line.
 function ContactAction({
   href,
   external,
@@ -49,13 +51,13 @@ function ContactAction({
     <a
       href={href}
       {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
-      className={buttonClass(variant, "reveal-scroll group !items-center !justify-between !gap-4 !px-6 !py-4 text-left !font-normal sm:!gap-5 sm:!px-10 sm:!py-6")}
+      className={buttonClass(variant, "reveal-scroll group w-full !justify-between !gap-4 !py-3 !pe-5 !ps-3 text-left")}
     >
-      <span className="min-w-0">
-        <span className="contact-action block">{action}</span>
-        <span className="mt-2 flex items-center gap-2 whitespace-nowrap text-[0.8125rem] font-medium opacity-75 sm:text-sm">
-          {icon}
-          {value}
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-ember">{icon}</span>
+        <span className="min-w-0">
+          <span className="block text-[0.9375rem] font-semibold leading-snug">{action}</span>
+          <span className="block truncate text-[0.8125rem] font-medium leading-snug text-ash">{value}</span>
         </span>
       </span>
       <Arrow />
@@ -66,11 +68,14 @@ function ContactAction({
 export function ContactSection() {
   return (
     <section id="contact" aria-labelledby="contact-title" className="page-shell pb-2">
-      <div className="plate contact-panel grid gap-7 p-5 sm:gap-8 sm:p-10 lg:grid-cols-6 lg:items-center lg:gap-x-6 lg:p-14">
-        <h2 id="contact-title" className="display display-section display-lift reveal-scroll max-w-[9em] lg:col-span-3">
-          <span className="display-deep">Got raw footage? Let&apos;s make the cut.</span>
-        </h2>
-        <div className="grid gap-4 lg:col-span-3">
+      <div className="plate contact-panel grid gap-7 p-6 sm:gap-8 sm:p-10 lg:grid-cols-6 lg:items-center lg:gap-x-6 lg:p-14">
+        <div className="reveal-scroll lg:col-span-3">
+          <p className="label">Start a project</p>
+          <h2 id="contact-title" className="display display-section display-lift mt-3 max-w-[9em]">
+            <span className="display-deep">Got raw footage? Let&apos;s make the cut.</span>
+          </h2>
+        </div>
+        <div className="grid w-full max-w-md gap-3 lg:col-span-3 lg:justify-self-end">
           <ContactAction href={SITE.whatsappUrl} external variant="primary" icon={<WhatsAppIcon />} action="Contact us on WhatsApp" value={SITE.whatsappDisplay} />
           <ContactAction href={SITE.emailUrl} variant="outline" icon={<MailIcon />} action="Email us your brief" value={SITE.email} />
         </div>

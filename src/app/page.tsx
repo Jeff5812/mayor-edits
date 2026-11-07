@@ -16,26 +16,29 @@ export async function generateMetadata(): Promise<Metadata> {
   return lead?.poster_url ? { openGraph: { images: [lead.poster_url] } } : {};
 }
 
-// Takes the column beside the lead frame on desktop, so the work is on screen from the very top of the page.
+// Takes the column beside the lead frame on desktop, so the work is on screen from the very top of the page. The headline is
+// three short lines on every screen, so it keeps one shape everywhere instead of breaking wherever the width happens to fall.
+// Its one action sits beside it on a tablet, where there is room, and under it on a phone and on desktop.
 function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="col-span-2 pb-3 pt-2 sm:pb-4 sm:pt-3 lg:py-2">
-      <div>
-        <div className="anim-rise flex items-center justify-between gap-4">
-          <p className="label">Video editing studio</p>
-          <LiveTimecode />
-        </div>
-        <h1 id="hero-title" className="display display-hero display-lift anim-playhead relative mt-2 w-fit lg:mt-3">
+    <section aria-labelledby="hero-title" className="col-span-2 pb-6 pt-2 sm:pb-8 sm:pt-3 lg:py-2">
+      <div className="anim-rise flex items-center justify-between gap-4">
+        <p className="label">Video editing studio</p>
+        <LiveTimecode />
+      </div>
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-8 gap-y-6 lg:block">
+        <h1 id="hero-title" className="display display-hero display-lift anim-playhead relative w-fit">
           <span className="anim-scrub block">
-            <span className="display-deep">We make every frame matter.</span>
+            <span className="display-deep block">We make </span>
+            <span className="display-deep block">every frame </span>
+            <span className="display-deep block">matter.</span>
           </span>
         </h1>
-      </div>
-      {/* Desktop only: on a phone the header's button is enough, and the first frame comes sooner. */}
-      <div className="anim-rise mt-7 hidden lg:block">
-        <a href="#contact" className={buttonClass("primary")}>
-          Send your footage
-        </a>
+        <div className="anim-rise lg:mt-7">
+          <a href="#contact" className={buttonClass("primary")}>
+            Send your footage
+          </a>
+        </div>
       </div>
     </section>
   );
@@ -54,7 +57,7 @@ export default async function Home() {
       <PointerDepth />
       <SiteHeader />
       <main>
-        <section id="work" aria-label="The reel" className="page-shell pb-8 pt-4 sm:pt-5 lg:pb-12">
+        <section id="work" aria-label="The reel" className="page-shell pb-10 pt-4 sm:pb-12 sm:pt-5">
           <PortfolioGrid projects={projects}>
             <Hero />
           </PortfolioGrid>
