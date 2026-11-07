@@ -70,9 +70,9 @@ drop area.
 
 ## How the owner gets in
 
-The owner opens `/admin` on any device, by address or through the small "Owner sign in" link in the public footer. Keeping that
-address quiet is not what protects anything, so the link costs nothing: every admin page and action checks the session and
-`is_admin()` on the server. Signing in is per device, and public sign-ups are off. To add an administrator, create the user in
+The owner opens `/admin` on any device, by address or by pressing the header logo three times quickly
+([BrandLink](../src/components/site/BrandLink.tsx)). The public page shows no sign-in link, at the owner's request. Keeping the
+address quiet is not what protects anything: every admin page and action checks the session and `is_admin()` on the server. Signing in is per device, and public sign-ups are off. To add an administrator, create the user in
 Supabase (Authentication, Users), then add their id to `public.admins`.
 
 Security is kept basic on purpose: there is one owner, and he only ever signs in. If he forgets his password, "Forgot your
