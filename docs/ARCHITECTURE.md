@@ -77,9 +77,9 @@ Supabase (Authentication, Users), then add their id to `public.admins`.
 
 A forgotten password is handled on the sign-in page: the owner asks for a link, and it opens the page for choosing a new one.
 The reply is the same for any address. If Supabase sends a link to the site's plain address instead, which happens for links
-sent from its dashboard, [AuthLinkHandoff](../src/components/site/AuthLinkHandoff.tsx) passes it on to that page. Supabase's
-built-in email only reaches members of the project's team, so the emails need the setup in
-[PASSWORD_EMAILS.md](PASSWORD_EMAILS.md).
+sent from its dashboard, [AuthLinkHandoff](../src/components/site/AuthLinkHandoff.tsx) passes it on to that page. Security is
+kept basic on purpose, so the owner only ever signs in. Supabase's built-in email only reaches members of the Supabase team, and
+when it cannot reach him the developer sets a temporary password: [FORGOTTEN_PASSWORD.md](FORGOTTEN_PASSWORD.md).
 
 ## Rules that are not obvious from the code
 

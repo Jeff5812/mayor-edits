@@ -56,7 +56,7 @@ export function RequestLinkPanel({ focus = false }: { focus?: boolean }) {
     return (
       <p role="status" className={successClass}>
         If that address belongs to an account, a link for choosing a password is on its way. It works once. Check your
-        spam folder if nothing arrives within a few minutes.
+        spam folder if nothing arrives within a few minutes, and if it still has not come, ask your developer to reset it.
       </p>
     );
   }
