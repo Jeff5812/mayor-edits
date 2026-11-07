@@ -15,7 +15,7 @@ const display = localFont({
 
 export const metadata: Metadata = {
   title: `${SITE.name} | Video editing`,
-  description: `${SITE.name} is a video editing studio. Watch the reel, then send your footage.`,
+  description: `${SITE.name} is a video editing studio. Watch the reel, then send your script or voiceover.`,
 };
 
 export const viewport: Viewport = {

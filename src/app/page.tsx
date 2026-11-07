@@ -40,7 +40,7 @@ function Hero() {
         </h1>
         <div className="anim-rise lg:mt-7">
           <a href="#contact" className={buttonClass("primary")}>
-            Send your footage
+            Send your script/voiceover
           </a>
         </div>
       </div>

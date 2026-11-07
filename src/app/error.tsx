@@ -9,7 +9,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
     <main className="page-shell flex min-h-dvh flex-col items-start justify-center gap-4 py-16">
       <h1 className="text-heading">The reel could not be loaded.</h1>
       <p className="text-ash">
-        Please try again in a moment, or send your footage details to{" "}
+        Please try again in a moment, or send your script or voiceover to{" "}
         <a href={SITE.emailUrl} className="text-bone underline underline-offset-4">
           {SITE.email}
         </a>
