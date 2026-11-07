@@ -113,6 +113,9 @@ administrator and a generated MP4, which it describes at the top.
 - 2026-11-05: the migration is applied and the live test passes against real Supabase and real R2, on the dev server: upload,
   playback with seeking, publish, edit, unpublish, duplicates, delete and upload from the reel. A separate run of a 119 MiB
   upload through the page survived a pause, a 45-second connection drop and a reload, sending no confirmed part twice.
-- **Not yet proven:** a full 500 MB upload, and anything on the deployed site. The site has not been deployed.
+- 2026-11-07: deployed to production at https://mayor-edits.vercel.app (Vercel project `mayor-edits`, deployed from this folder
+  with the Vercel CLI). Checked live as a visitor: the page, the sign-in redirect, the public routes' refusals, a real play
+  with subtitles, and R2 accepting uploads from that address while refusing others.
+- **Not yet proven:** a full 500 MB upload, and an owner's upload on the live site (the test administrator was removed first).
 - Measured on one slow connection (about 1 to 8 Mbps down) on 2026-11-05: a page view requests nothing from R2, and 2 Mbps
   video played smoothly where 8 Mbps kept stalling. Each video is one file at one quality, so bitrate decides who can watch it.
