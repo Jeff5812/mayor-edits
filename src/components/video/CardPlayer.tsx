@@ -1,6 +1,6 @@
 "use client";
 
-import { type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type PointerEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchPlaybackUrl } from "@/lib/media/playback";
 import type { PublicProject } from "@/types/domain";
 import { FullscreenIcon, PlayIcon } from "./PlayerIcons";
@@ -56,6 +56,10 @@ export function CardPlayer({ project }: { project: PublicProject }) {
   }, []);
 
   useEffect(() => stopPreview, [stopPreview]);
+
+  // Next.js keeps a page it leaves in the document, hidden, and a hidden video keeps playing. The card goes back to its poster
+  // instead, and pressing play again carries on from where the film was left.
+  useLayoutEffect(() => () => setMode("idle"), []);
 
   function startPreview(event: PointerEvent) {
     if (event.pointerType === "touch" || !canPreview()) return;

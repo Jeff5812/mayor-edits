@@ -906,50 +906,6 @@
     inline-size: 3rem;
   }
 
-  /* What the signed-in owner sees over a frame. Only ever rendered for the owner. */
-  .owner-overlay {
-    align-items: center;
-    background: rgb(9 10 13 / 0.45);
-    display: flex;
-    inset: 0;
-    justify-content: center;
-    opacity: 0;
-    position: absolute;
-    transition: opacity var(--dur-ui) var(--ease-ui);
-    z-index: 20;
-  }
-
-  .card:hover .owner-overlay,
-  .owner-overlay:focus-within {
-    opacity: 1;
-  }
-
-  @media (hover: none) {
-    .owner-overlay {
-      opacity: 1;
-    }
-  }
-
-  .owner-edit {
-    left: 18px;
-    opacity: 0;
-    position: absolute;
-    top: 18px;
-    transition: opacity var(--dur-ui) var(--ease-ui);
-    z-index: 20;
-  }
-
-  .card:hover .owner-edit,
-  .owner-edit:focus-visible {
-    opacity: 1;
-  }
-
-  @media (hover: none) {
-    .owner-edit {
-      opacity: 1;
-    }
-  }
-
   /* Underlines that draw themselves from the left. */
   .link-draw {
     background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0 1px;

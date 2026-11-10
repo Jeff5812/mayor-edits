@@ -278,33 +278,15 @@ test("deleting removes the project and its files", async ({ page }) => {
 
 test("visitors see no owner controls on the reel", async ({ page }) => {
   await page.goto("/");
-  await page.waitForTimeout(1000);
-  await expect(page.getByTestId("owner-upload")).toHaveCount(0);
+  await expect(page.getByTestId("public-project").first()).toBeVisible();
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await expect(page.locator('a[href^="/admin/projects"]')).toHaveCount(0);
 });
 
-test("the owner can upload straight from a frame on the reel, and its name and time appear", async ({ page }) => {
-  const reelTitle = `${title} from the reel`;
+test("signed in or not, the reel is the same public page, with nothing to upload or edit", async ({ page }) => {
   await signIn(page);
   await open(page, "/");
-  await expect(page.getByTestId("owner-upload").first()).toBeAttached({ timeout: 30_000 });
-  await page.getByTestId("owner-video-input").first().setInputFiles(videoPath as string);
-
-  const dialog = page.getByTestId("owner-upload-dialog");
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel("Title").fill(reelTitle);
-  await dialog.getByLabel("Category").fill("Brand");
-  await expect(dialog.getByRole("button", { name: "Create draft and upload" })).toBeVisible({ timeout: 60_000 });
-  await dialog.getByRole("button", { name: "Create draft and upload" }).click();
-  await expect(dialog.getByTestId("upload-success")).toBeVisible({ timeout: 8 * 60 * 1000 });
-  await dialog.getByRole("button", { name: "Publish" }).click();
-  await expect(dialog.getByTestId("publish-panel")).toContainText("Published");
-  await dialog.getByRole("button", { name: "Close" }).click();
-
-  const card = page.getByTestId("public-project").filter({ hasText: reelTitle });
-  await expect(card).toBeVisible({ timeout: 30_000 });
-  await expect(card.locator("time")).toBeVisible();
-
-  // Clean up through the same dashboard the owner uses.
-  await open(page, "/admin");
-  await deleteFromDashboard(page, reelTitle);
+  await expect(page.getByTestId("public-project").first()).toBeVisible();
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await expect(page.locator('a[href^="/admin/projects"]')).toHaveCount(0);
 });
