@@ -70,6 +70,15 @@ export function playbackWarning(sizeBytes: number, durationSeconds: number | nul
   return `This video runs at about ${Math.round(mbps)} Mbps, so visitors on slower connections may see it stop to buffer. An export as ${SUGGESTED_EXPORT} plays more smoothly.`;
 }
 
+// A running time worth storing: whole seconds, up to a day. Anything else from a browser counts as unknown.
+export const MAX_DURATION_SECONDS = 24 * 60 * 60;
+
+export function cleanDuration(seconds: unknown): number | null {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) return null;
+  const whole = Math.round(seconds);
+  return whole >= 1 && whole <= MAX_DURATION_SECONDS ? whole : null;
+}
+
 // Top-level atoms a real MP4 can start with.
 const ISO_BMFF_ATOMS = new Set(["ftyp", "moov", "mdat", "free", "skip", "wide"]);
 

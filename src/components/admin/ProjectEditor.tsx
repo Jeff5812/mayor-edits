@@ -1,26 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { UNREADABLE_FILE, explainFailure, isFileReadError } from "@/lib/media/failures";
 import { fingerprintFile } from "@/lib/media/fingerprint";
 import { formatBytes } from "@/lib/media/format";
-import { clearPendingVideo, leavePendingVideo, peekPendingVideo } from "@/lib/media/pending-files";
-import { attachFirstFrame } from "@/lib/media/poster-upload";
-import type { UploadServer } from "@/lib/media/upload-controller";
+import { uploadFor, useProjectUpload } from "@/lib/media/upload-registry";
 import { MAX_VIDEO_MB, VIDEO_ACCEPT, validateVideoFile } from "@/lib/media/validation";
 import type { DuplicateProject } from "@/lib/projects/action-types";
-import {
-  cancelVideoUpload,
-  createProject,
-  failVideoUpload,
-  finalizeVideoUpload,
-  findDuplicateVideo,
-  prepareVideoUpload,
-  setProjectPublished,
-  updateProject,
-} from "@/lib/projects/actions";
-import { type FieldErrors, parseProjectInput } from "@/lib/projects/schema";
+import { createProject, findDuplicateVideo, setProjectPublished, updateProject } from "@/lib/projects/actions";
+import { type FieldErrors, parseProjectInput, titleFromFileName } from "@/lib/projects/schema";
 import type { Project } from "@/types/domain";
 import { ExternalIcon } from "./AdminIcons";
 import { PosterPanel } from "./PosterPanel";
@@ -50,18 +40,9 @@ interface FormValues {
   is_featured: boolean;
 }
 
-// A starting title from the file's name: "harbour_lights_final.mp4" becomes "harbour lights final".
-function titleFromFile(file: File) {
-  return file.name
-    .replace(/\.[^.]+$/, "")
-    .replace(/[-_.]+/g, " ")
-    .trim()
-    .slice(0, 160);
-}
-
-function initialValues(project: Project | null, video?: File): FormValues {
+function initialValues(project: Project | null): FormValues {
   return {
-    title: project?.title ?? (video ? titleFromFile(video) : ""),
+    title: project?.title ?? "",
     description: project?.description ?? "",
     category: project?.category ?? "",
     language: project?.language ?? "",
@@ -96,7 +77,7 @@ function describedBy(id: string, hint: boolean, error: string | undefined) {
 
 const NEXT_STEPS = [
   ["Create the draft", "It stays private. Nobody sees it until you publish it."],
-  ["The video uploads", "Stay on the page while it runs. If the connection drops, it carries on from where it stopped."],
+  ["The video uploads", "You can keep working while it does, here or on any other page. Keep this tab open until it finishes. If the connection drops, it carries on by itself when it is back."],
   ["Poster and subtitles", "A frame from the video becomes the poster, and you can change it. Add subtitles one language at a time."],
   ["Publish", "It goes on the reel at once."],
 ];
@@ -125,11 +106,29 @@ function NextSteps() {
   );
 }
 
-// Used by the "new project" page and by the project page. A new project is saved as a draft first,
-// and the project page then runs the upload, so the upload never spans a change of address.
-// `initialVideo` is the same form opened over the public page with a file already chosen: it stays where it is
-// and runs the upload right there, because there is no change of address to protect against.
-export function ProjectEditor({ project: initial, initialVideo }: { project: Project | null; initialVideo?: File }) {
+// The video as it stands: playable when finished, and showing the upload while one runs.
+function ProjectStage({ project }: { project: Project }) {
+  const { state } = useProjectUpload(project);
+  return <VideoStage key={project.video_path ?? "none"} project={project} upload={state} />;
+}
+
+// The video, its poster and its subtitles. The upload belongs to the tab, so this page only shows it.
+function ProjectMedia({ project, onProject }: { project: Project; onProject: (project: Project) => void }) {
+  const { upload, state } = useProjectUpload(project);
+  // Hears about the video and poster an upload attaches, even while Next.js keeps this page hidden.
+  useEffect(() => upload.reportTo(onProject), [upload, onProject]);
+  return (
+    <>
+      <VideoUploadPanel project={project} upload={upload} state={state} />
+      <PosterPanel project={project} localVideo={upload.file} onProject={onProject} />
+      <SubtitlesPanel projectId={project.id} />
+    </>
+  );
+}
+
+// Used by the "new project" page and by the project page. A new project is saved as a draft first, and its upload starts
+// at once and carries on in the tab while the project page opens.
+export function ProjectEditor({ project: initial }: { project: Project | null }) {
   const router = useRouter();
   const [project, setProject] = useState(initial);
   // The server sends a fresh copy after any change. It wins, because it is at least as new as ours.
@@ -139,21 +138,24 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
     setProject(initial);
   }
 
-  const [values, setValues] = useState(() => initialValues(initial, initialVideo));
+  const [values, setValues] = useState(() => initialValues(initial));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // A new draft's own page is opening, and this one has nothing left to do.
+  const [opening, setOpening] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
-  // Video chosen on this page.
-  const [localVideo, setLocalVideo] = useState<File | null>(null);
-  const [pendingFile] = useState<File | null>(() => (initial ? peekPendingVideo(initial.id) : null));
-  const initialId = initial?.id;
-  useEffect(() => {
-    if (initialId) clearPendingVideo(initialId);
-  }, [initialId]);
+  // Messages about something just done would be stale on coming back, because Next.js keeps a page it leaves.
+  useLayoutEffect(
+    () => () => {
+      setSaved(null);
+      setPublishError(null);
+    },
+    [],
+  );
 
   // "New project" page: the file is checked now, and uploaded once the draft exists.
   const [newVideo, setNewVideo] = useState<File | null>(null);
@@ -162,7 +164,6 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
   const [checkingVideo, setCheckingVideo] = useState(false);
   const [draggingVideo, setDraggingVideo] = useState(false);
   const newVideoInput = useRef<HTMLInputElement>(null);
-  const [uploadHere, setUploadHere] = useState<File | null>(null);
 
   const idPrefix = useId();
   const id = (name: string) => `${idPrefix}-${name}`;
@@ -190,7 +191,12 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
         setFormError(result.error);
         return null;
       }
+      // A new draft is edited on its own page, which opens next. Turning this one into a second copy of it would only leave
+      // that copy running, hidden, in the page Next.js keeps.
+      if (!project) return result.data;
       setProject(result.data);
+      // What was saved, tidied the same way the server tidies it.
+      setValues(initialValues(result.data));
       setSaved("Saved.");
       return result.data;
     } catch (error) {
@@ -204,16 +210,12 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (checkingVideo) return;
-    const hadProject = Boolean(project);
+    const created = !project;
     const result = await save();
-    if (result && !hadProject) {
-      if (initialVideo) {
-        setUploadHere(newVideo);
-        return;
-      }
-      if (newVideo) leavePendingVideo(result.id, newVideo);
-      router.replace(`/admin/projects/${result.id}`);
-    }
+    if (!result || !created) return;
+    setOpening(true);
+    if (newVideo) uploadFor(result).start(newVideo);
+    router.replace(`/admin/projects/${result.id}`);
   }
 
   async function pickNewVideo(file: File) {
@@ -239,49 +241,12 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
       }
       setNewVideo(file);
       // The file's name is a better start than an empty box, and nothing typed is ever replaced.
-      setValues((previous) => (previous.title ? previous : { ...previous, title: titleFromFile(file) }));
+      setValues((previous) => (previous.title ? previous : { ...previous, title: titleFromFileName(file.name) }));
     } catch (error) {
       setNewVideoError(isFileReadError(error) ? UNREADABLE_FILE : explainFailure("The file could not be checked.", error));
     } finally {
       setCheckingVideo(false);
     }
-  }
-
-  // A file chosen before the form opened goes through the same checks as one chosen in the form.
-  const checkedInitialVideo = useRef(false);
-  useEffect(() => {
-    if (!initialVideo || checkedInitialVideo.current) return;
-    checkedInitialVideo.current = true;
-    void pickNewVideo(initialVideo);
-  }, [initialVideo]);
-
-  // The upload's server calls, stable for the life of this page.
-  const projectForUpload = useRef(project);
-  useEffect(() => {
-    projectForUpload.current = project;
-  }, [project]);
-  const uploadServer = useMemo<UploadServer>(
-    () => ({
-      findDuplicateVideo,
-      prepareVideoUpload,
-      finalizeVideoUpload,
-      failVideoUpload,
-      cancelVideoUpload,
-      ensureProject: async () => projectForUpload.current,
-    }),
-    [],
-  );
-
-  function onUploadedProject(next: Project) {
-    setProject(next);
-    if (next.poster_path || !localVideo) return;
-    attachFirstFrame(next.id, localVideo)
-      .then((result) => {
-        if (result.ok) setProject(result.data);
-        else console.error("[poster] automatic poster failed:", result.error);
-      })
-      // The poster panel still lets the owner add one, so this is not worth interrupting them for.
-      .catch((error) => console.error("[poster] automatic poster failed:", error instanceof Error ? error.message : error));
   }
 
   async function togglePublished() {
@@ -300,12 +265,13 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
   }
 
   const published = project?.status === "published";
+  const videoReady = Boolean(project?.video_path) && project?.upload_status === "ready";
 
   return (
     <div className="mt-5 grid items-start gap-5 sm:mt-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-6">
       {/* The cut and its words on the left, because that is what the page is about. What goes around it is on the right. */}
       <div className="grid min-w-0 gap-5 lg:gap-6">
-        {project ? <VideoStage key={project.video_path ?? "none"} project={project} /> : null}
+        {project ? <ProjectStage project={project} /> : null}
 
         <form onSubmit={(event) => void onSubmit(event)} noValidate className={`grid gap-5 ${panelClass}`} aria-label="Project details">
           {project ? <h2 className={panelTitleClass}>Details</h2> : null}
@@ -360,9 +326,9 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
                   {newVideoDuplicate ? (
                     <p className="mt-2">
                       It belongs to{" "}
-                      <a href={`/admin/projects/${newVideoDuplicate.id}`} className="underline underline-offset-4">
+                      <Link href={`/admin/projects/${newVideoDuplicate.id}`} className="underline underline-offset-4">
                         {newVideoDuplicate.title}
-                      </a>
+                      </Link>
                       .
                     </p>
                   ) : null}
@@ -435,7 +401,7 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
               className="size-5 accent-bone"
               onChange={(event) => change("is_featured", event.target.checked)}
             />
-            Feature it: show this first on the reel
+            Feature it: the big frame at the top of the reel. Only one film is featured at a time.
           </label>
 
           {formError ? (
@@ -449,10 +415,10 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
             </p>
           ) : null}
 
-          {/* A new project's longer form runs past the bottom of a short window or dialog, so its button stays in view. */}
+          {/* A new project's longer form runs past the bottom of a short window, so its button stays in view. */}
           <div className={`${project ? "" : "sticky bottom-0 z-10"} -mx-5 -mb-5 rounded-b-[4px] border-t border-line bg-[var(--surface-1)] px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6`}>
-            <button type="submit" disabled={saving || checkingVideo} className={primaryButtonClass}>
-              {saving ? "Saving" : project ? "Save details" : newVideo ? "Create draft and upload" : "Create draft"}
+            <button type="submit" disabled={saving || opening || checkingVideo} className={primaryButtonClass}>
+              {opening ? "Opening the project" : saving ? "Saving" : project ? "Save details" : newVideo ? "Create draft and upload" : "Create draft"}
             </button>
           </div>
         </form>
@@ -466,9 +432,20 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
                 <h2 className={panelTitleClass}>Publishing</h2>
                 <StatusPill status={project.status} />
               </div>
-              <p className={panelHintClass}>{published ? "It is on the reel now, for anyone to watch." : "Only you can see this. It goes on the reel when you say so."}</p>
+              <p className={panelHintClass}>
+                {published
+                  ? "It is on the reel now, for anyone to watch."
+                  : videoReady
+                    ? "Only you can see this. It goes on the reel when you say so."
+                    : "Only you can see this. It can go on the reel once its video has finished uploading."}
+              </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button type="button" className={published ? smallButtonClass : primaryButtonClass} disabled={publishing} onClick={() => void togglePublished()}>
+                <button
+                  type="button"
+                  className={published || !videoReady ? smallButtonClass : primaryButtonClass}
+                  disabled={publishing || (!published && !videoReady)}
+                  onClick={() => void togglePublished()}
+                >
                   {publishing ? "Working" : published ? "Unpublish" : "Publish"}
                 </button>
                 {published ? (
@@ -485,15 +462,7 @@ export function ProjectEditor({ project: initial, initialVideo }: { project: Pro
                 </p>
               ) : null}
             </section>
-            <VideoUploadPanel
-              project={project}
-              server={uploadServer}
-              initialFile={pendingFile ?? uploadHere}
-              onProject={onUploadedProject}
-              onFile={setLocalVideo}
-            />
-            <PosterPanel project={project} localVideo={localVideo} onProject={setProject} />
-            <SubtitlesPanel projectId={project.id} />
+            <ProjectMedia project={project} onProject={setProject} />
           </>
         ) : (
           <NextSteps />

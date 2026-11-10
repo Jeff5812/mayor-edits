@@ -222,6 +222,14 @@ describe("while uploading", () => {
     clock.mockRestore();
   });
 
+  it("says when it is waiting for the connection, and estimates afresh once it is back", async () => {
+    const { controller, session } = await uploading();
+    session.options.onConnection?.(false);
+    expect(controller.current).toMatchObject({ phase: "uploading", offline: true, secondsLeft: null, bytesPerSecond: null });
+    session.options.onConnection?.(true);
+    expect(controller.current).toMatchObject({ phase: "uploading", offline: false });
+  });
+
   it("pauses and resumes the same session", async () => {
     const { controller, session } = await uploading();
     await controller.pause();

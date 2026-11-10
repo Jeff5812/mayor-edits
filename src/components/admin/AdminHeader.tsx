@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { signOutAction } from "@/app/admin/login/actions";
 import { BrandMark } from "@/components/site/BrandMark";
 import { buttonClass } from "@/components/ui/Button";
 import { SITE } from "@/lib/site";
+import { AccountMenuItems, UploadIndicator } from "./AdminHeaderControls";
 import { ChevronIcon, ExternalIcon } from "./AdminIcons";
 
 const ACCOUNT_MENU_ID = "account-menu";
 const NAV_LINK = "inline-flex min-h-11 items-center gap-1.5 rounded-[3px] px-2.5 text-sm font-medium text-ash transition-colors duration-200 hover:text-bone sm:px-3";
 const MENU_ITEM = "flex min-h-11 w-full cursor-pointer items-center rounded-[3px] px-3 text-sm font-medium text-bone transition-colors duration-200 hover:bg-white/[0.07] focus-visible:bg-white/[0.07]";
 
-// The same glass bar as the public page, so signing in feels like walking behind the same screen.
-// The account menu is the browser's own popover, so it needs no JavaScript and works from the keyboard.
+// The same glass bar as the public page, so signing in feels like walking behind the same screen. It shows any upload running
+// in this tab, and the account menu is the browser's own popover, so it works from the keyboard.
 export function AdminHeader({ email }: { email: string | undefined }) {
   return (
     <header className="sticky top-0 z-30 pt-2 sm:pt-3">
@@ -25,6 +25,7 @@ export function AdminHeader({ email }: { email: string | undefined }) {
             <span className="header-playhead" />
           </div>
           <nav aria-label="Admin" className="flex shrink-0 items-center">
+            <UploadIndicator className={`${NAV_LINK} text-bone`} />
             <Link href="/admin" className={`${NAV_LINK} max-sm:hidden`}>
               Projects
             </Link>
@@ -50,14 +51,7 @@ export function AdminHeader({ email }: { email: string | undefined }) {
                 <p className="mt-1 text-sm text-bone [overflow-wrap:anywhere]">{email}</p>
               </div>
               <div className="mx-3 border-t border-line" />
-              <Link href="/admin/login?flow=set-password" className={MENU_ITEM}>
-                Change password
-              </Link>
-              <form action={signOutAction}>
-                <button type="submit" className={MENU_ITEM}>
-                  Sign out
-                </button>
-              </form>
+              <AccountMenuItems itemClass={MENU_ITEM} />
             </div>
           </nav>
         </div>

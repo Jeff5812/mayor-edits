@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_VIDEO_BYTES,
   buildObjectName,
+  cleanDuration,
   extensionOf,
   fitWithin,
   isUuid,
@@ -64,6 +65,19 @@ describe("playbackWarning", () => {
 
   it("warns when the browser could not read the video at all", () => {
     expect(playbackWarning(1000, null)).toMatch(/H\.264/);
+  });
+});
+
+describe("cleanDuration", () => {
+  it("keeps a real running time, in whole seconds", () => {
+    expect(cleanDuration(1131.6)).toBe(1132);
+    expect(cleanDuration(5)).toBe(5);
+  });
+
+  it("treats anything else a browser might send as unknown", () => {
+    for (const value of [null, undefined, Number.NaN, Number.POSITIVE_INFINITY, -5, 0, 0.4, "90", 90_000]) {
+      expect(cleanDuration(value)).toBeNull();
+    }
   });
 });
 

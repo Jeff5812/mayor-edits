@@ -1,160 +1,66 @@
 "use client";
 
 import Link from "next/link";
-import { type DragEvent, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { type DragEvent, useEffect, useId, useRef, useState } from "react";
 import { formatBytes, formatEta, percentOf } from "@/lib/media/format";
-import { INITIAL_UPLOAD_STATE, UploadController, type UploadServer, type UploadState } from "@/lib/media/upload-controller";
+import { type UploadState, isUploadBusy } from "@/lib/media/upload-controller";
+import type { ProjectUpload } from "@/lib/media/upload-registry";
 import { MAX_VIDEO_MB, VIDEO_ACCEPT } from "@/lib/media/validation";
 import type { Project } from "@/types/domain";
 import { alertClass, noticeClass, panelClass, panelHintClass, panelTitleClass, primaryButtonClass, smallButtonClass, successClass } from "./styles";
 
-const LEAVE_WARNING = "A video is still uploading. If you leave now it stops, and you will need to choose the file again to continue.";
-
-class ControllerStore {
-  private listeners = new Set<() => void>();
-  state: UploadState = INITIAL_UPLOAD_STATE;
-  controller: UploadController;
-  private onProject: (project: Project) => void = () => {};
-
-  constructor(server: UploadServer) {
-    this.controller = new UploadController({
-      server,
-      onChange: (state) => {
-        this.state = state;
-        this.listeners.forEach((listener) => listener());
-      },
-      onProject: (project) => this.onProject(project),
-    });
-  }
-
-  listenForProject(listener: (project: Project) => void) {
-    this.onProject = listener;
-  }
-
-  // React's development mode unmounts and remounts every component once, straight after it first
-  // appears. Waiting a tick means only a real departure stops the upload.
-  private disposeTimer: number | undefined;
-
-  scheduleDispose() {
-    this.disposeTimer = window.setTimeout(() => this.controller.dispose(), 0);
-  }
-
-  cancelDispose() {
-    window.clearTimeout(this.disposeTimer);
-  }
-
-  subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
-
-  read = () => this.state;
-  readServer = () => INITIAL_UPLOAD_STATE;
+// What the upload is doing, in the owner's words.
+function uploadStatus(state: UploadState): string | null {
+  if (state.phase === "uploading") return state.offline ? "Waiting for the connection" : formatEta(state.secondsLeft);
+  if (state.phase === "paused") return "Paused";
+  if (state.phase === "attaching") return "Finishing up";
+  if (state.phase === "cancelling") return "Cancelling";
+  return null;
 }
 
-export function VideoUploadPanel({
-  project,
-  server,
-  initialFile = null,
-  onProject,
-  onFile,
-}: {
-  project: Project | null;
-  server: UploadServer;
-  // A file chosen before this page opened: the upload starts straight away.
-  initialFile?: File | null;
-  onProject: (project: Project) => void;
-  onFile?: (file: File) => void;
-}) {
-  const [store] = useState(() => new ControllerStore(server));
-  useEffect(() => {
-    store.listenForProject(onProject);
-  });
-
-  const state = useSyncExternalStore(store.subscribe, store.read, store.readServer);
-  const controller = store.controller;
-
+// A view of the project's upload, which runs in the tab rather than on this page (see upload-registry): leaving the page
+// does not stop it, and coming back shows where it has got to.
+export function VideoUploadPanel({ project, upload, state }: { project: Project; upload: ProjectUpload; state: UploadState }) {
+  const { controller } = upload;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const inputId = useId();
   const hintId = useId();
-
-  const busy = ["checking", "uploading", "paused", "attaching", "cancelling"].includes(state.phase);
-
-  function start(file: File) {
-    onFile?.(file);
-    void controller.choose(file, project?.id ?? null);
-  }
-
-  // A file left by the "new project" page. The ref keeps React's double effects from starting it twice.
-  const startedInitial = useRef(false);
-  useEffect(() => {
-    if (!initialFile || startedInitial.current) return;
-    startedInitial.current = true;
-    onFile?.(initialFile);
-    void controller.choose(initialFile, project?.id ?? null);
-    // Runs once, for the file this page opened with.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialFile, controller]);
-
-  // Closing the tab or following a link would stop the upload, so both ask first.
-  useEffect(() => {
-    if (!busy) return;
-    const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
-    const onClick = (event: MouseEvent) => {
-      const anchor = (event.target as Element | null)?.closest?.("a[href]");
-      if (!anchor || anchor.getAttribute("target") === "_blank") return;
-      if (!window.confirm(LEAVE_WARNING)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    document.addEventListener("click", onClick, true);
-    return () => {
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      document.removeEventListener("click", onClick, true);
-    };
-  }, [busy]);
-
-  // Leaving keeps the resume point, so choosing the same file later carries on from there.
-  useEffect(() => {
-    store.cancelDispose();
-    return () => store.scheduleDispose();
-  }, [store]);
+  const busy = isUploadBusy(state);
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
     const file = event.dataTransfer.files[0];
-    if (file && !busy) start(file);
+    if (file && !busy) upload.start(file);
   }
 
-  // The form sits above this panel on a phone, and can push it off a short screen, so the owner is brought here as soon as
-  // anything starts. Otherwise a running upload looks like nothing happening.
+  // On a phone the form above can push this panel off a short screen, so it comes into view when an upload starts here.
   const sectionRef = useRef<HTMLElement>(null);
+  const lastPhase = useRef(state.phase);
   useEffect(() => {
-    if (state.phase !== "idle") sectionRef.current?.scrollIntoView({ block: "center" });
+    if (lastPhase.current === "idle" && state.phase !== "idle") sectionRef.current?.scrollIntoView({ block: "center" });
+    lastPhase.current = state.phase;
   }, [state.phase]);
 
   const percent = percentOf(state.bytesUploaded, state.bytesTotal);
   const showProgress = ["uploading", "paused", "attaching", "cancelling"].includes(state.phase);
-  const interrupted =
-    state.phase === "idle" && project && !project.video_path && ["uploading", "failed"].includes(project.upload_status);
+  const interrupted = state.phase === "idle" && !project.video_path && ["uploading", "failed"].includes(project.upload_status);
+  const status = uploadStatus(state);
 
   return (
     <section ref={sectionRef} aria-labelledby={`${inputId}-title`} className={panelClass}>
       <h2 id={`${inputId}-title`} className={panelTitleClass}>
-        {project?.video_path ? "Replace the video" : "Add the video"}
+        {project.video_path ? "Replace the video" : "Add the video"}
       </h2>
 
-      {project?.video_path && project.upload_status === "ready" ? (
+      {project.video_path && project.upload_status === "ready" ? (
         <p className={panelHintClass}>The current one stays live until the new one has fully arrived, and is removed after that.</p>
       ) : null}
 
       {interrupted ? (
         <p className={`mt-4 ${noticeClass}`}>
-          An earlier upload did not finish. Choose the same file on this computer and it continues from where it stopped.
+          An earlier upload did not finish. Choose the same file on this device and it carries on from where it stopped.
         </p>
       ) : null}
 
@@ -180,11 +86,11 @@ export function VideoUploadPanel({
               const file = event.target.files?.[0];
               // Clearing it lets the same file be chosen again after a failure.
               event.target.value = "";
-              if (file) start(file);
+              if (file) upload.start(file);
             }}
           />
           {/* The bright button when this is the next step, and a quiet one when it would only replace a finished video. */}
-          <button type="button" className={project?.video_path ? smallButtonClass : primaryButtonClass} onClick={() => inputRef.current?.click()}>
+          <button type="button" className={project.video_path ? smallButtonClass : primaryButtonClass} onClick={() => inputRef.current?.click()}>
             Choose a video file
           </button>
           <p id={hintId} className="mt-3 text-sm text-ash">
@@ -220,13 +126,13 @@ export function VideoUploadPanel({
             <span>
               {formatBytes(state.bytesUploaded)} of {formatBytes(state.bytesTotal)}
             </span>
-            <span role="status">
-              {state.phase === "uploading" ? formatEta(state.secondsLeft) : null}
-              {state.phase === "paused" ? "Paused" : null}
-              {state.phase === "attaching" ? "Finishing up" : null}
-              {state.phase === "cancelling" ? "Cancelling" : null}
-            </span>
+            <span role="status">{status}</span>
           </p>
+          {state.offline && state.phase === "uploading" ? (
+            <p className={`mt-3 ${noticeClass}`}>The connection dropped. The upload carries on by itself as soon as it is back.</p>
+          ) : (
+            <p className={`mt-3 ${panelHintClass}`}>You can keep working, here or on other pages. Keep this tab open until it finishes.</p>
+          )}
           <div className="mt-4 flex flex-wrap gap-3">
             {state.phase === "uploading" ? (
               <button type="button" className={smallButtonClass} onClick={() => void controller.pause()}>

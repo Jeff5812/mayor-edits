@@ -1,5 +1,5 @@
-// Browser only. Reads duration and poster frames through an object URL in a detached video element,
-// so the file is never loaded into memory. Every object URL is revoked when the work finishes.
+// Browser only. Reads duration and poster frames in a detached video element: from a local file through an object URL, so the
+// file is never loaded into memory, or from a stored video's link. Every object URL is revoked when the work finishes.
 import { POSTER_MAX_BYTES, POSTER_TARGET_BYTES, fitWithin } from "./validation";
 
 export class UndecodableVideoError extends Error {
@@ -10,16 +10,18 @@ export class UndecodableVideoError extends Error {
 }
 
 const DECODE_TIMEOUT_MS = 20_000;
+// A stored video's index has to come over the connection first, which takes a while on a slow line.
+const STORED_TIMEOUT_MS = 90_000;
 
-async function withVideo<T>(file: Blob, work: (video: HTMLVideoElement) => Promise<T>): Promise<T> {
-  const url = URL.createObjectURL(file);
+async function withVideo<T>(source: Blob | string, work: (video: HTMLVideoElement) => Promise<T>, timeoutMs = DECODE_TIMEOUT_MS): Promise<T> {
+  const url = typeof source === "string" ? source : URL.createObjectURL(source);
   const video = document.createElement("video");
   video.muted = true;
   video.playsInline = true;
   video.preload = "metadata";
   try {
     await new Promise<void>((resolve, reject) => {
-      const timer = window.setTimeout(() => reject(new UndecodableVideoError()), DECODE_TIMEOUT_MS);
+      const timer = window.setTimeout(() => reject(new UndecodableVideoError()), timeoutMs);
       video.onloadedmetadata = () => {
         window.clearTimeout(timer);
         resolve();
@@ -36,16 +38,25 @@ async function withVideo<T>(file: Blob, work: (video: HTMLVideoElement) => Promi
     video.onerror = null;
     video.removeAttribute("src");
     video.load();
-    URL.revokeObjectURL(url);
+    if (typeof source !== "string") URL.revokeObjectURL(url);
   }
 }
+
+const durationOf = async (video: HTMLVideoElement) => (Number.isFinite(video.duration) && video.duration > 0 ? Math.round(video.duration) : null);
 
 // Null means the browser could not read the file, which is common for some MOV codecs.
 export async function readVideoDuration(file: Blob): Promise<number | null> {
   try {
-    return await withVideo(file, async (video) =>
-      Number.isFinite(video.duration) && video.duration > 0 ? Math.round(video.duration) : null,
-    );
+    return await withVideo(file, durationOf);
+  } catch {
+    return null;
+  }
+}
+
+// The running time of a stored video, from its link. Only the start of the file is fetched, where an MP4 keeps its index.
+export async function readStoredVideoDuration(url: string): Promise<number | null> {
+  try {
+    return await withVideo(url, durationOf, STORED_TIMEOUT_MS);
   } catch {
     return null;
   }

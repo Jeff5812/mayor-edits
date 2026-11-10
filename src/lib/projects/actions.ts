@@ -16,9 +16,17 @@ import {
   signPartUrl,
   storedObjectSize,
 } from "@/lib/media/r2";
-import { MAX_VIDEO_BYTES, MAX_VIDEO_MB, VIDEO_MIME, buildObjectName, isUuid, objectBelongsToProject } from "@/lib/media/validation";
+import {
+  MAX_VIDEO_BYTES,
+  MAX_VIDEO_MB,
+  VIDEO_MIME,
+  buildObjectName,
+  cleanDuration,
+  isUuid,
+  objectBelongsToProject,
+} from "@/lib/media/validation";
 import type { Project } from "@/types/domain";
-import type { ActionFailure, ActionResult, DuplicateProject, FinalizeVideoInput, PrepareVideoInput } from "./action-types";
+import type { ActionFailure, ActionResult, DuplicateProject, FinalizeVideoInput, MeasuredRunningTime, PrepareVideoInput } from "./action-types";
 import { asAdmin } from "./as-admin";
 import { PORTFOLIO_TAG } from "./portfolio-tag";
 import { type ProjectInput, parseProjectInput } from "./schema";
@@ -56,6 +64,12 @@ async function getProject(supabase: Supabase, id: string): Promise<Project | nul
   return data as Project | null;
 }
 
+// The reel has one lead, so featuring a film lets go of any other. Null means it worked.
+async function unfeatureOthers(supabase: Supabase, id: string): Promise<string | null> {
+  const { error } = await supabase.from("projects").update({ is_featured: false }).eq("is_featured", true).neq("id", id);
+  return error ? error.message : null;
+}
+
 export async function createProject(input: ProjectInput): Promise<ActionResult<Project>> {
   return asAdmin(async (supabase) => {
     const parsed = parseProjectInput(input);
@@ -63,9 +77,14 @@ export async function createProject(input: ProjectInput): Promise<ActionResult<P
 
     const { data, error } = await supabase.from("projects").insert(parsed.data).select("*").single();
     if (error) return failedWrite("The project could not be saved", error.message);
+    const project = data as Project;
+    if (project.is_featured) {
+      const problem = await unfeatureOthers(supabase, project.id);
+      if (problem) console.error("[admin] other films stayed featured:", problem);
+    }
 
     refreshEverything();
-    return { ok: true, data: data as Project };
+    return { ok: true, data: project };
   });
 }
 
@@ -75,6 +94,10 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Ac
     if (!parsed.ok) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: parsed.fieldErrors };
     if (!isUuid(id)) return { ok: false, error: NOT_FOUND };
 
+    if (parsed.data.is_featured) {
+      const problem = await unfeatureOthers(supabase, id);
+      if (problem) return failedWrite("The project could not be saved", problem);
+    }
     const { data, error } = await supabase.from("projects").update(parsed.data).eq("id", id).select("*").maybeSingle();
     if (error) return failedWrite("The project could not be saved", error.message);
     if (!data) return { ok: false, error: NOT_FOUND };
@@ -112,10 +135,32 @@ export async function setProjectPublished(id: string, publish: boolean): Promise
 export async function setProjectFeatured(id: string, featured: boolean): Promise<ActionResult> {
   return asAdmin(async (supabase) => {
     if (!isUuid(id)) return { ok: false, error: NOT_FOUND };
+    if (featured) {
+      const problem = await unfeatureOthers(supabase, id);
+      if (problem) return failedWrite("The project could not be updated", problem);
+    }
     const { error } = await supabase.from("projects").update({ is_featured: featured }).eq("id", id);
     if (error) return failedWrite("The project could not be updated", error.message);
     refreshEverything();
     return { ok: true, data: undefined };
+  });
+}
+
+// Corrects stored running times from the videos themselves, measured in the owner's browser. Each value is checked again
+// here, because a browser can send anything.
+export async function saveRunningTimes(measured: MeasuredRunningTime[]): Promise<ActionResult<{ corrected: number }>> {
+  return asAdmin(async (supabase) => {
+    if (!Array.isArray(measured) || measured.length > 1000) return { ok: false, error: "Those running times could not be read." };
+    let corrected = 0;
+    for (const item of measured) {
+      const seconds = cleanDuration(item?.seconds);
+      if (typeof item?.id !== "string" || !isUuid(item.id) || seconds === null) continue;
+      const { data, error } = await supabase.from("projects").update({ duration_seconds: seconds }).eq("id", item.id).select("id");
+      if (error) return failedWrite("The running times could not be saved", error.message);
+      corrected += data?.length ?? 0;
+    }
+    if (corrected > 0) refreshEverything();
+    return { ok: true, data: { corrected } };
   });
 }
 
@@ -226,7 +271,7 @@ export async function prepareVideoUpload(input: PrepareVideoInput): Promise<Acti
       return { ok: true, data: { ...current, uploaded, urls } };
     } catch (error) {
       console.error("[upload] could not prepare:", error instanceof Error ? error.message : error);
-      return { ok: false, error: STORAGE_UNAVAILABLE };
+      return { ok: false, error: STORAGE_UNAVAILABLE, retryable: true };
     }
   });
 }
@@ -274,7 +319,8 @@ export async function finalizeVideoUpload(input: FinalizeVideoInput): Promise<Ac
         video_size_bytes: sizeBytes,
         video_fingerprint: fingerprint,
         upload_status: "ready",
-        duration_seconds: durationSeconds ?? project.duration_seconds,
+        // The new video's own running time. One the browser could not read is unknown, never the old video's.
+        duration_seconds: cleanDuration(durationSeconds),
       })
       .eq("id", projectId)
       .select("*")

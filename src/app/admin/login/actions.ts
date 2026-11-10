@@ -93,3 +93,12 @@ export async function signOutAction() {
   }
   redirect("/admin/login");
 }
+
+// Ends every session of this account, on every phone and computer, so a device that should no longer get in is cut off too.
+export async function signOutEverywhereAction() {
+  if (isSupabaseConfigured()) {
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signOut({ scope: "global" });
+  }
+  redirect("/admin/login");
+}

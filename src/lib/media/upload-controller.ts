@@ -46,6 +46,8 @@ export interface UploadState {
   duplicate: DuplicateProject | null;
   // True when a failed step can be tried again without choosing the file again.
   canRetry: boolean;
+  // True while the connection is gone and the upload waits to carry on by itself.
+  offline: boolean;
 }
 
 export const INITIAL_UPLOAD_STATE: UploadState = {
@@ -60,7 +62,15 @@ export const INITIAL_UPLOAD_STATE: UploadState = {
   notice: null,
   duplicate: null,
   canRetry: false,
+  offline: false,
 };
+
+// Phases in which leaving would interrupt something.
+const BUSY_PHASES: UploadPhase[] = ["checking", "uploading", "paused", "attaching", "cancelling"];
+
+export function isUploadBusy(state: UploadState): boolean {
+  return BUSY_PHASES.includes(state.phase);
+}
 
 export interface UploadControllerOptions {
   server: UploadServer;
@@ -112,7 +122,7 @@ export class UploadController {
 
   // Whether leaving the page now would interrupt something.
   get isBusy() {
-    return ["checking", "uploading", "paused", "attaching", "cancelling"].includes(this.state.phase);
+    return isUploadBusy(this.state);
   }
 
   async choose(file: File, currentProjectId: string | null): Promise<void> {
@@ -196,7 +206,7 @@ export class UploadController {
     const create = this.options.createSession ?? ((options: MultipartSessionOptions) => new MultipartSession(options));
 
     this.sendingSince = null;
-    this.set({ phase: "uploading", bytesUploaded: 0, bytesPerSecond: null, secondsLeft: null, error: null, canRetry: false });
+    this.set({ phase: "uploading", bytesUploaded: 0, bytesPerSecond: null, secondsLeft: null, error: null, canRetry: false, offline: false });
 
     const session = create({
       file,
@@ -210,6 +220,12 @@ export class UploadController {
       },
       onError: (message) => {
         if (attempt === this.attempt) void this.handleFailure(message);
+      },
+      onConnection: (connected) => {
+        if (attempt !== this.attempt) return;
+        // The time without a connection says nothing about the speed, so the estimate starts again.
+        this.sendingSince = null;
+        this.set({ offline: !connected, bytesPerSecond: null, secondsLeft: null });
       },
     });
     this.session = session;

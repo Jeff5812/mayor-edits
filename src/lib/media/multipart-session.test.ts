@@ -78,20 +78,31 @@ function setup(overrides: Partial<MultipartSessionOptions> = {}) {
 }
 
 const saved = new Map<string, string>();
+// What the browser would call when the connection comes back.
+const onlineListeners = new Set<() => void>();
+let connection = { onLine: true };
 
 beforeEach(() => {
   FakeRequest.sent = [];
   FakeRequest.attempts = new Map();
   FakeRequest.behaviour = () => "ok";
   saved.clear();
+  onlineListeners.clear();
+  connection = { onLine: true };
   vi.stubGlobal("window", {
     localStorage: {
       getItem: (key: string) => saved.get(key) ?? null,
       setItem: (key: string, value: string) => saved.set(key, value),
       removeItem: (key: string) => saved.delete(key),
     },
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === "online") onlineListeners.add(listener);
+    },
+    removeEventListener: (type: string, listener: () => void) => {
+      if (type === "online") onlineListeners.delete(listener);
+    },
   });
-  vi.stubGlobal("navigator", { onLine: true });
+  vi.stubGlobal("navigator", connection);
 });
 
 afterEach(() => {
@@ -185,11 +196,58 @@ describe("when something goes wrong", () => {
     expect(FakeRequest.sent).toHaveLength(0);
   });
 
-  it("reports a failure to reach the server", async () => {
-    const { session, prepare, onError } = setup();
+  it("asks the server again when no answer came back, and carries on", async () => {
+    const { session, prepare, onSuccess, onError } = setup();
     prepare.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     await session.start();
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks again when storage was out of reach for a moment", async () => {
+    const { session, prepare, onSuccess } = setup();
+    prepare.mockResolvedValueOnce({ ok: false, error: "Video storage could not be reached.", retryable: true });
+    await session.start();
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a failure to reach the server once asking again has not helped", async () => {
+    const { session, prepare, onError } = setup();
+    prepare.mockRejectedValue(new TypeError("Failed to fetch"));
+    await session.start();
+    expect(prepare).toHaveBeenCalledTimes(3);
     expect(onError.mock.calls[0][0]).toMatch(/connection/);
+  });
+});
+
+describe("an unreliable connection", () => {
+  it("waits for a lost connection to come back instead of using up its retries, then carries on", async () => {
+    connection.onLine = false;
+    FakeRequest.behaviour = (part, attempt) => (part === 2 && attempt === 0 ? "network" : "ok");
+    const reported: boolean[] = [];
+    const { session, onSuccess, onError } = setup({ retryDelays: [], onConnection: (connected) => reported.push(connected) });
+    const finished = session.start();
+
+    await vi.waitFor(() => expect(reported).toEqual([false]));
+    expect(onError).not.toHaveBeenCalled();
+
+    connection.onLine = true;
+    onlineListeners.forEach((listener) => listener());
+    await finished;
+    expect(reported).toEqual([false, true]);
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(FakeRequest.attempts.get(2)).toBe(2);
+  });
+
+  it("treats a part that stops making progress as dropped, and sends it again", async () => {
+    FakeRequest.behaviour = (part, attempt) => (part === 1 && attempt === 0 ? "hang" : "ok");
+    const { session, onSuccess, onError } = setup({ stallMs: 20 });
+    await session.start();
+    expect(onError).not.toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(FakeRequest.attempts.get(1)).toBe(2);
   });
 });
 

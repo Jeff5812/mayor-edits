@@ -24,19 +24,21 @@ visits never touch the database. The page never reads cookies and never receives
 featured one, is the lead: the one big frame on every screen, beside the headline on desktop. On a phone and a tablet each other
 film is a row beneath it, its frame beside its title. On desktop the others fill rows of two, then three, so a row is never left
 half empty ([reel-layout.ts](../src/components/site/reel-layout.ts), with a test). A lone second film takes the lead's width
-beneath it, and the headline stays beside the two as the page scrolls. The default frame shows only while there is no film at
-all, and as the signed-in owner's extra frame to upload into.
+beneath it, and the headline stays beside the two as the page scrolls. Titles stop at two lines, a phone's rows all share the
+height of their picture, and the frames of one desktop row share one height. The default frame shows only while there is no film
+at all. The page is the same for everyone, signed in or not: uploading and editing only happen in the admin.
 
 **Upload.** The browser asks `prepareVideoUpload` what to send. It checks the admin, then returns signed links for each
 missing 8 MiB part. The browser sends the parts straight to R2, three at a time, with retries
-([multipart-session.ts](../src/lib/media/multipart-session.ts)). `finalizeVideoUpload` lists what R2 holds, completes the
-upload, checks the size, then updates the project. R2 remembers which parts arrived, so a pause, a dropped connection or a
-closed tab carries on when the same file is chosen again.
+([multipart-session.ts](../src/lib/media/multipart-session.ts)). With no connection at all it waits, however long, and carries
+on by itself, and a part with no progress for a minute counts as dropped and is sent again. `finalizeVideoUpload` lists what R2
+holds, completes the upload, checks the size, then updates the project. R2 remembers which parts arrived, so a pause, a
+dropped connection or a closed tab carries on when the same file is chosen again.
 
-**Uploading from the reel.** [owner-session.ts](../src/lib/auth/owner-session.ts) checks for a session cookie, and only then
-downloads the Supabase client and asks `is_admin`. [OwnerControls.tsx](../src/components/site/OwnerControls.tsx) renders
-nothing for anyone else. Hovering a frame offers "Upload a video", which opens the admin area's own `ProjectEditor` in a
-dialog, so there is one form and one upload path. The page itself stays static and identical for everyone.
+**Uploads belong to the tab.** [upload-registry.ts](../src/lib/media/upload-registry.ts) holds one upload per project for the
+life of the tab, so the owner can move around the admin, or start the next project, while one runs. A project's page only shows
+its upload, and the admin header shows any that are running. The registry also takes the first frame as a poster when a new
+video arrives, keeps a phone's screen on while anything uploads, and asks before the tab is closed.
 
 **Playback.** Nothing loads until a visitor presses play. `/api/playback/[id]` reads the project as an anonymous visitor,
 so row-level security only finds published ones, then returns a one-hour signed link. The player fetches a new link if one
@@ -50,7 +52,8 @@ in the browser to at most 1600 px and about 350 KB, because Supabase Free has no
 - Every server action calls `assertAdmin()` first. The proxy only refreshes sessions and redirects: it is a convenience.
 - Row-level security with `is_admin()` is what enforces access in the database and the posters bucket.
 - R2 keys are server-only and must never have a `NEXT_PUBLIC_` prefix. The app needs no Supabase service-role key at all.
-- Owner controls on the public page only decide what to show. They grant nothing.
+- The public page has no owner controls at all, so it looks the same to every device, signed in or not.
+- "Sign out on all devices", in the admin's account menu, ends every session of the account at once.
 
 ## Design
 
@@ -89,6 +92,11 @@ choosing a password by [AuthLinkHandoff](../src/components/site/AuthLinkHandoff.
 - **Cache Components** is on, so `dynamic` and `revalidate` exports are errors. Admin pages use `export const instant = false`.
 - **Playwright** runs one worker in real Chrome, because Playwright's own browser cannot play H.264.
 - **Dev CSS.** After editing a CSS file, the dev server can keep serving the old CSS. Stop it and delete `.next/dev/cache`.
+- **Pages stay alive when left.** With Cache Components, Next.js hides a page the owner leaves instead of removing it, and
+  shows it again on return (React's `Activity`). Effects clean up and re-run, but state and the DOM stay. So a video pauses itself
+  in a `useLayoutEffect` cleanup (a hidden video keeps playing otherwise), "New project" is keyed by `bfcacheId` so each visit
+  starts empty, messages about something just done clear on leaving, and uploads live in the tab rather than in a page. Tests
+  should use visibility-aware locators, because hidden pages are still in the document.
 - **Migrations.** The Supabase connector declines destructive SQL, so those are run by a person in the SQL Editor.
 - **Test footage** must be generated. The owner's `Videos` folder holds personal files, and stock sites forbid scripted access.
 
@@ -130,6 +138,12 @@ administrator and a generated MP4, which it describes at the top.
 - 2026-11-07: deployed to production at https://mayor-edits.vercel.app (Vercel project `mayor-edits`, deployed from this folder
   with the Vercel CLI). Checked live as a visitor: the page, the sign-in redirect, the public routes' refusals, a real play
   with subtitles, and R2 accepting uploads from that address while refusing others.
+- 2026-11-10: admin sweep. Fixed a video playing on after leaving its page, "New project" coming back with the last project,
+  an upload panel left frozen after leaving mid-upload, an old video's running time kept for a new one, and more than one
+  featured film. Uploads now carry on across the admin, wait out a lost connection, retry a stalled part and keep a phone's
+  screen on. The public page lost its owner controls. Driven in a real browser against a local stand-in for Supabase and the
+  real R2 bucket: running times re-checked from the real files, playback stopping on leaving, a 15 MB upload finishing while
+  the owner was on another page, its poster, publishing, a fresh "New project", one featured film, deleting, and signing out.
 - **Not yet proven:** a full 500 MB upload, and an owner's upload on the live site (the test administrator was removed first).
 - Measured on one slow connection (about 1 to 8 Mbps down) on 2026-11-05: a page view requests nothing from R2, and 2 Mbps
   video played smoothly where 8 Mbps kept stalling. Each video is one file at one quality, so bitrate decides who can watch it.

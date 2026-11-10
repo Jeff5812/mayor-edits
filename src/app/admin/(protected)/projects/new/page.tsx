@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { NewProjectEditor } from "@/components/admin/NewProjectEditor";
 import { PageHead } from "@/components/admin/PageHead";
-import { ProjectEditor } from "@/components/admin/ProjectEditor";
 import { pageClass } from "@/components/admin/styles";
 import { requireAdmin } from "@/lib/auth/admin";
 
@@ -14,7 +14,7 @@ export default async function NewProjectPage() {
   return (
     <main id="main" className={pageClass}>
       <PageHead back title="New project" />
-      <ProjectEditor project={null} />
+      <NewProjectEditor />
     </main>
   );
 }

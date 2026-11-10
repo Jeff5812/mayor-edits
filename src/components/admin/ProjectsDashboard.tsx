@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { DefaultFrame } from "@/components/site/DefaultFrame";
 import { LiveTimecode } from "@/components/site/LiveTimecode";
 import { formatBytes, formatClock, percentOf } from "@/lib/media/format";
@@ -10,6 +10,7 @@ import type { Project, UploadStatus } from "@/types/domain";
 import { PlusIcon, StarIcon } from "./AdminIcons";
 import { PageHead } from "./PageHead";
 import { ProjectRowActions } from "./ProjectRowActions";
+import { RunningTimesCheck } from "./RunningTimesCheck";
 import { StatusPill } from "./StatusPill";
 import { alertClass, pageClass, primaryButtonClass } from "./styles";
 
@@ -22,11 +23,12 @@ const uploadProblem: Partial<Record<UploadStatus, string>> = {
 
 const FREE_GB = FREE_VIDEO_STORAGE_BYTES / 1000 ** 3;
 
-function Reading({ label, value }: { label: string; value: string }) {
+function Reading({ label, value, children }: { label: string; value: string; children?: ReactNode }) {
   return (
     <div className="readout-cell">
       <p className="label">{label}</p>
       <p className="display mt-2.5 text-[2.75rem] leading-none tabular-nums">{value}</p>
+      {children}
     </div>
   );
 }
@@ -37,11 +39,16 @@ function Readout({ projects }: { projects: Project[] }) {
   const percent = percentOf(used, FREE_VIDEO_STORAGE_BYTES);
   const published = projects.filter((project) => project.status === "published").length;
   const runtime = projects.reduce((total, project) => total + (project.duration_seconds ?? 0), 0);
+  const finished = projects
+    .filter((project) => project.video_path && project.upload_status === "ready")
+    .map((project) => ({ id: project.id, seconds: project.duration_seconds }));
   return (
     <section aria-label="The reel at a glance" className="readout plate anim-rise">
       <Reading label="Published" value={String(published)} />
       <Reading label="Drafts" value={String(projects.length - published)} />
-      <Reading label="Runtime" value={formatClock(runtime)} />
+      <Reading label="Runtime" value={formatClock(runtime)}>
+        <RunningTimesCheck videos={finished} />
+      </Reading>
       <div className="readout-cell col-span-3 lg:col-span-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4">
           <p className="label">Video storage</p>

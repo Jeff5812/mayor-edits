@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { explainFailure } from "@/lib/media/failures";
 import type { ActionResult } from "@/lib/projects/action-types";
 import { deleteProject, setProjectFeatured, setProjectPublished } from "@/lib/projects/actions";
@@ -22,6 +22,16 @@ export function ProjectRowActions({ project }: { project: Project }) {
     if (confirming) cancelRef.current?.focus();
   }, [confirming]);
 
+  // Next.js keeps a page the owner leaves, so a half-made choice or an old message would still be there on coming back.
+  useLayoutEffect(
+    () => () => {
+      setConfirming(false);
+      setError(null);
+      setNotice(null);
+    },
+    [],
+  );
+
   function run(action: () => Promise<ActionResult<unknown>>) {
     setError(null);
     setNotice(null);
@@ -37,8 +47,9 @@ export function ProjectRowActions({ project }: { project: Project }) {
   }
 
   const published = project.status === "published";
-  // A finished draft has one obvious next step, so that button is the bright one.
-  const readyToPublish = !published && project.upload_status === "ready";
+  const videoReady = Boolean(project.video_path) && project.upload_status === "ready";
+  // A finished draft has one obvious next step, so that button is the bright one. One without its video cannot go on the reel.
+  const readyToPublish = !published && videoReady;
   const featureName = project.is_featured ? "Featured" : "Feature";
 
   return (
@@ -69,7 +80,8 @@ export function ProjectRowActions({ project }: { project: Project }) {
           </Link>
           <button
             type="button"
-            disabled={pending}
+            disabled={pending || (!published && !videoReady)}
+            title={!published && !videoReady ? "It can be published once its video has finished uploading" : undefined}
             className={readyToPublish ? primaryButtonClass : smallButtonClass}
             onClick={() => run(() => setProjectPublished(project.id, !published))}
           >
@@ -82,7 +94,7 @@ export function ProjectRowActions({ project }: { project: Project }) {
               disabled={pending}
               aria-pressed={project.is_featured}
               aria-label={`${featureName} ${project.title}`}
-              title={project.is_featured ? "Featured: shown first on the reel. Press to undo." : "Feature: show this first on the reel"}
+              title={project.is_featured ? "Featured: the big frame on the reel. Press to undo." : "Feature: make this the big frame on the reel, in place of any other"}
               className={iconButtonClass}
               onClick={() => run(() => setProjectFeatured(project.id, !project.is_featured))}
             >
