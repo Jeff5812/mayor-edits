@@ -1,6 +1,6 @@
 // Browser only. Reads duration and poster frames in a detached video element: from a local file through an object URL, so the
 // file is never loaded into memory, or from a stored video's link. Every object URL is revoked when the work finishes.
-import { POSTER_MAX_BYTES, POSTER_TARGET_BYTES, isThumbnailShape, thumbnailCrop } from "./validation";
+import { POSTER_MAX_BYTES, POSTER_TARGET_BYTES, defaultFrameAt, isThumbnailShape, thumbnailCrop } from "./validation";
 
 export class UndecodableVideoError extends Error {
   constructor() {
@@ -98,12 +98,12 @@ export async function thumbnailFromVideo(video: HTMLVideoElement): Promise<Blob>
   return encodePoster(drawThumbnail(video, video.videoWidth, video.videoHeight));
 }
 
-// Grabs one frame of a file as a thumbnail, by default a little way in, past any fade from black.
+// Grabs one frame of a file as a thumbnail, by default a tenth of the way in (see defaultFrameAt).
 export async function captureVideoFrame(file: Blob, atSeconds?: number): Promise<Blob> {
   return withVideo(file, async (video) => {
     if (!video.videoWidth || !video.videoHeight) throw new UndecodableVideoError();
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
-    const target = atSeconds ?? Math.min(duration * 0.1, 5);
+    const target = atSeconds ?? defaultFrameAt(duration);
     video.preload = "auto";
 
     await new Promise<void>((resolve, reject) => {

@@ -6,7 +6,7 @@ import { prepareThumbnailImage, thumbnailFromVideo } from "@/lib/media/frames";
 import { formatClock } from "@/lib/media/format";
 import { attachPoster } from "@/lib/media/poster-upload";
 import { posterUrl } from "@/lib/media/poster-url";
-import { POSTER_ACCEPT, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH, VIDEO_ACCEPT, thumbnailNote, validatePosterFile } from "@/lib/media/validation";
+import { POSTER_ACCEPT, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH, VIDEO_ACCEPT, defaultFrameAt, thumbnailNote, validatePosterFile } from "@/lib/media/validation";
 import { removeProjectPoster } from "@/lib/projects/actions";
 import type { Project } from "@/types/domain";
 import { alertClass, panelClass, panelHintClass, panelTitleClass, primaryButtonClass, smallButtonClass, successClass } from "./styles";
@@ -238,8 +238,8 @@ function FramePicker({ source, disabled, onUse }: { source: File; disabled: bool
         onLoadedMetadata={(event) => {
           const seconds = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
           setLength(seconds);
-          // A little way in, past any fade from black.
-          seek(Math.min(5, seconds * 0.1));
+          // Where an automatic thumbnail would be taken from.
+          seek(defaultFrameAt(seconds));
         }}
         onError={() => setFailed(true)}
       />

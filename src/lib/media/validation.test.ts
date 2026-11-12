@@ -9,6 +9,7 @@ import {
   looksLikeMp4Bytes,
   objectBelongsToProject,
   playbackWarning,
+  defaultFrameAt,
   thumbnailCrop,
   thumbnailNote,
   validatePosterFile,
@@ -135,6 +136,13 @@ describe("thumbnails", () => {
     expect(isThumbnailShape(1280, 720)).toBe(true);
     expect(isThumbnailShape(1920, 1080)).toBe(false);
     expect(isThumbnailShape(1280, 960)).toBe(false);
+  });
+
+  it("takes the automatic frame a tenth of the way in, past the opening, but never far in", () => {
+    // The first seconds of these films often show a subscribe reminder.
+    expect(defaultFrameAt(60)).toBe(6);
+    expect(defaultFrameAt(1132)).toBe(90);
+    expect(defaultFrameAt(Number.NaN)).toBe(0);
   });
 
   it("tells the owner the size saved, any crop, and when it is too small to look sharp", () => {

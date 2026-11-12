@@ -114,6 +114,12 @@ export function thumbnailCrop(width: number, height: number) {
   };
 }
 
+// Where a thumbnail is taken from when the owner has not chosen one: a tenth of the way in, past the opening titles, fades and
+// subscribe reminders that many videos show in their first seconds, and never more than a minute and a half in.
+export function defaultFrameAt(duration: number): number {
+  return Number.isFinite(duration) && duration > 0 ? Math.min(duration * 0.1, 90) : 0;
+}
+
 // Already a thumbnail as it stands: 16:9 and no wider than needed, so it can be kept untouched.
 export function isThumbnailShape(width: number, height: number): boolean {
   return width <= THUMBNAIL_WIDTH && Math.abs(width / height - THUMBNAIL_WIDTH / THUMBNAIL_HEIGHT) < 0.01;
