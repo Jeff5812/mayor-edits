@@ -13,7 +13,6 @@ import { createProject, findDuplicateVideo, setProjectPublished, updateProject }
 import { type FieldErrors, parseProjectInput, titleFromFileName } from "@/lib/projects/schema";
 import type { Project } from "@/types/domain";
 import { ExternalIcon } from "./AdminIcons";
-import { PosterPanel } from "./PosterPanel";
 import { StatusPill } from "./StatusPill";
 import {
   alertClass,
@@ -29,6 +28,7 @@ import {
   successClass,
 } from "./styles";
 import { SubtitlesPanel } from "./SubtitlesPanel";
+import { ThumbnailField, ThumbnailPanel } from "./ThumbnailPanel";
 import { VideoStage } from "./VideoStage";
 import { VideoUploadPanel } from "./VideoUploadPanel";
 
@@ -75,22 +75,29 @@ function describedBy(id: string, hint: boolean, error: string | undefined) {
   return [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ") || undefined;
 }
 
-const NEXT_STEPS = [
-  ["Create the draft", "It stays private. Nobody sees it until you publish it."],
-  ["The video uploads", "You can keep working while it does, here or on any other page. Keep this tab open until it finishes. If the connection drops, it carries on by itself when it is back."],
-  ["Poster and subtitles", "A frame from the video becomes the poster, and you can change it. Add subtitles one language at a time."],
-  ["Publish", "It goes on the reel at once."],
-];
+function nextSteps(autoSubtitles: boolean) {
+  return [
+    ["Create the draft", "It stays private. Nobody sees it until you publish it."],
+    ["The video uploads", "You can keep working while it does, here or on any other page. Keep this tab open until it finishes. If the connection drops, it carries on by itself when it is back."],
+    [
+      "Thumbnail and subtitles",
+      autoSubtitles
+        ? "Your thumbnail goes on the card, or a frame from the video if you did not choose one. Subtitles are then written from what is said, and translated, by themselves."
+        : "Your thumbnail goes on the card, or a frame from the video if you did not choose one. Add subtitles one language at a time.",
+    ],
+    ["Publish", "It goes on the reel at once."],
+  ];
+}
 
 // What the rest of the page will hold, so a new project's page explains itself before there is anything to show.
-function NextSteps() {
+function NextSteps({ autoSubtitles }: { autoSubtitles: boolean }) {
   return (
     <section aria-labelledby="next-steps" className={panelClass}>
       <h2 id="next-steps" className={panelTitleClass}>
         What happens next
       </h2>
       <ol className="mt-4 grid gap-4">
-        {NEXT_STEPS.map(([title, body], index) => (
+        {nextSteps(autoSubtitles).map(([title, body], index) => (
           <li key={title} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 border-t border-line pt-4 first:border-t-0 first:pt-0">
             <span aria-hidden="true" className="font-time text-sm text-mute">
               {String(index + 1).padStart(2, "0")}
@@ -112,23 +119,24 @@ function ProjectStage({ project }: { project: Project }) {
   return <VideoStage key={project.video_path ?? "none"} project={project} upload={state} />;
 }
 
-// The video, its poster and its subtitles. The upload belongs to the tab, so this page only shows it.
+// The video, its thumbnail and its subtitles. The upload belongs to the tab, so this page only shows it.
 function ProjectMedia({ project, onProject }: { project: Project; onProject: (project: Project) => void }) {
-  const { upload, state } = useProjectUpload(project);
-  // Hears about the video and poster an upload attaches, even while Next.js keeps this page hidden.
+  const { upload, state, subtitles } = useProjectUpload(project);
+  // Hears about the video and thumbnail an upload attaches, even while Next.js keeps this page hidden.
   useEffect(() => upload.reportTo(onProject), [upload, onProject]);
+  const videoReady = Boolean(project.video_path) && project.upload_status === "ready";
   return (
     <>
       <VideoUploadPanel project={project} upload={upload} state={state} />
-      <PosterPanel project={project} localVideo={upload.file} onProject={onProject} />
-      <SubtitlesPanel projectId={project.id} />
+      <ThumbnailPanel project={project} localVideo={upload.file} onProject={onProject} />
+      <SubtitlesPanel projectId={project.id} upload={upload} job={subtitles} hasVideo={videoReady} />
     </>
   );
 }
 
 // Used by the "new project" page and by the project page. A new project is saved as a draft first, and its upload starts
 // at once and carries on in the tab while the project page opens.
-export function ProjectEditor({ project: initial }: { project: Project | null }) {
+export function ProjectEditor({ project: initial, autoSubtitles = false }: { project: Project | null; autoSubtitles?: boolean }) {
   const router = useRouter();
   const [project, setProject] = useState(initial);
   // The server sends a fresh copy after any change. It wins, because it is at least as new as ours.
@@ -163,6 +171,7 @@ export function ProjectEditor({ project: initial }: { project: Project | null })
   const [newVideoDuplicate, setNewVideoDuplicate] = useState<DuplicateProject | null>(null);
   const [checkingVideo, setCheckingVideo] = useState(false);
   const [draggingVideo, setDraggingVideo] = useState(false);
+  const [newThumbnail, setNewThumbnail] = useState<File | null>(null);
   const newVideoInput = useRef<HTMLInputElement>(null);
 
   const idPrefix = useId();
@@ -214,7 +223,9 @@ export function ProjectEditor({ project: initial }: { project: Project | null })
     const result = await save();
     if (!result || !created) return;
     setOpening(true);
-    if (newVideo) uploadFor(result).start(newVideo);
+    const upload = uploadFor(result);
+    if (newThumbnail) upload.chooseThumbnail(newThumbnail);
+    if (newVideo) upload.start(newVideo);
     router.replace(`/admin/projects/${result.id}`);
   }
 
@@ -336,6 +347,8 @@ export function ProjectEditor({ project: initial }: { project: Project | null })
               ) : null}
             </div>
           ) : null}
+
+          {!project ? <ThumbnailField file={newThumbnail} onChoose={setNewThumbnail} disabled={opening} /> : null}
 
           <Field id={id("title")} label="Title" error={errors.title}>
             <input
@@ -465,7 +478,7 @@ export function ProjectEditor({ project: initial }: { project: Project | null })
             <ProjectMedia project={project} onProject={setProject} />
           </>
         ) : (
-          <NextSteps />
+          <NextSteps autoSubtitles={autoSubtitles} />
         )}
       </div>
     </div>

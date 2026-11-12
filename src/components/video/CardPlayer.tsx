@@ -1,7 +1,8 @@
 "use client";
 
-import { type PointerEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, type PointerEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchPlaybackUrl } from "@/lib/media/playback";
+import { useWatchedShare } from "@/lib/media/watch-progress";
 import type { PublicProject } from "@/types/domain";
 import { FullscreenIcon, PlayIcon } from "./PlayerIcons";
 import { VideoPlayer } from "./VideoPlayer";
@@ -42,6 +43,8 @@ export function CardPlayer({ project }: { project: PublicProject }) {
   const abort = useRef<AbortController | null>(null);
   const link = useRef<string | null>(null);
   const startedAt = useRef(0);
+  // How far this visitor got last time, shown along the frame's foot, and where play carries on.
+  const watched = useWatchedShare(project.id);
 
   const stopPreview = useCallback(() => {
     window.clearTimeout(timer.current);
@@ -126,6 +129,7 @@ export function CardPlayer({ project }: { project: PublicProject }) {
           setPreviewStage("off");
         }}
       />
+      {watched > 0 ? <span aria-hidden="true" data-testid="card-watched" className="frame-watched" style={{ "--watched": `${watched * 100}%` } as CSSProperties} /> : null}
       <span className={`scrub ${previewStage === "waiting" ? "is-waiting" : ""}`} />
       <button type="button" aria-label={`Play ${project.title}`} data-testid="card-play" className="card-press" onClick={() => play(playsFullscreen() ? "touch" : "inline")}>
         <span aria-hidden="true" className="play-disc">

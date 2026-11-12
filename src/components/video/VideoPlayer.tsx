@@ -1,14 +1,28 @@
 "use client";
 
-import { type CSSProperties, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from "react";
-import { formatClock, percentOf } from "@/lib/media/format";
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
+import { formatClock } from "@/lib/media/format";
 import { PlaybackError, fetchPlaybackUrl, fetchSubtitleLanguages } from "@/lib/media/playback";
+import { rememberSubtitle, rememberVolume, rememberedSubtitle, rememberedVolume } from "@/lib/media/player-memory";
 import { type SubtitleCode, subtitleLabel } from "@/lib/media/subtitles";
+import { saveWatched, watchedAt } from "@/lib/media/watch-progress";
 import type { PublicProject } from "@/types/domain";
-import { BackTenIcon, ForwardTenIcon, FullscreenIcon, PauseIcon, PlayIcon, SmallPlayIcon, SubtitlesIcon, VolumeIcon } from "./PlayerIcons";
+import {
+  BackTenIcon,
+  ForwardTenIcon,
+  FullscreenIcon,
+  PauseIcon,
+  PictureInPictureIcon,
+  PlayIcon,
+  SmallPlayIcon,
+  SubtitlesIcon,
+  VolumeIcon,
+} from "./PlayerIcons";
 import { PlayerMenu } from "./PlayerMenu";
+import { SeekBar, rangeStyle } from "./SeekBar";
 
 type Stage = "idle" | "loading" | "ready" | "error";
+type Side = "" | "is-left" | "is-right";
 type ErrorKind = "unavailable" | "network" | "unsupported";
 
 const SEEK_STEP_SECONDS = 5;
@@ -16,8 +30,10 @@ const SKIP_SECONDS = 10;
 const VOLUME_STEP = 0.1;
 const CONTROLS_HIDE_MS = 3000;
 const SPEEDS = ["0.75", "1", "1.25", "1.5", "2"];
-// A convenience: someone who chose Spanish on one video probably wants it on the next.
-const SUBTITLE_MEMORY = "mayor-edits-subtitles";
+// Two taps on either side of the picture within this long skip, as on phone video apps.
+const DOUBLE_TAP_MS = 300;
+// While playing, where the film has got to is saved this often, so closing the tab loses little.
+const SAVE_EVERY_SECONDS = 10;
 // How long to wait before asking again for a subtitle file that failed, once for each extra try.
 const SUBTITLE_RETRY_MS = [1500, 4000];
 
@@ -29,17 +45,9 @@ const ERROR_TEXT: Record<ErrorKind, { title: string; body: string }> = {
 
 const CONTROL = "player-control size-10 shrink-0 items-center justify-center";
 
-function rangeStyle(fill: number, loaded = fill) {
-  return { "--fill": `${fill}%`, "--loaded": `${loaded}%` } as CSSProperties;
-}
-
-function rememberedSubtitle(languages: SubtitleCode[]): SubtitleCode | "" {
-  try {
-    const saved = window.localStorage.getItem(SUBTITLE_MEMORY);
-    return languages.find((code) => code === saved) ?? "";
-  } catch {
-    return "";
-  }
+function remembered(languages: SubtitleCode[]): SubtitleCode | "" {
+  const saved = rememberedSubtitle();
+  return languages.find((code) => code === saved) ?? "";
 }
 
 // The words of the lines showing right now, without any styling tags in the file.
@@ -53,9 +61,6 @@ function activeCueText(track: TextTrack) {
 interface WebkitVideo extends HTMLVideoElement {
   webkitEnterFullscreen?: () => void;
 }
-
-// Where each film was left during this visit, so pressing play again carries on from there.
-const resumeAt = new Map<string, number>();
 
 export function VideoPlayer({
   project,
@@ -76,8 +81,13 @@ export function VideoPlayer({
   const hideTimer = useRef<number | undefined>(undefined);
   const lastPointer = useRef("mouse");
   const menusOpen = useRef(0);
-  // Where to carry on, and whether to keep playing, if a signed link expires part-way through.
-  const lastTime = useRef(resumeAt.get(project.id) ?? 0);
+  // Where to carry on: where this visitor stopped last time, then wherever a signed link expires part-way through.
+  const lastTime = useRef(watchedAt(project.id));
+  const savedAt = useRef(0);
+  // The last tap on the picture, to tell a double tap, and a single tap held back in case it becomes one.
+  const lastTap = useRef(0);
+  const heldTap = useRef<number | undefined>(undefined);
+  const lastLanguage = useRef<SubtitleCode | "">("");
   const wantsPlay = useRef(false);
   const refreshes = useRef(0);
   const refreshedAt = useRef(0);
@@ -100,6 +110,10 @@ export function VideoPlayer({
   const [cueText, setCueText] = useState("");
   const [subtitleAttempt, setSubtitleAttempt] = useState(0);
   const [subtitleFailed, setSubtitleFailed] = useState(false);
+  const [canPictureInPicture, setCanPictureInPicture] = useState(false);
+  // A skip, a speed or a subtitle change just made, shown for a moment over the picture. Pausing needs none: the big play
+  // button shows.
+  const [flash, setFlash] = useState<{ id: number; content: ReactNode; side: Side } | null>(null);
   const hintId = useId();
 
   // The player only exists once a visitor has pressed play, so a page view asks for none of this.
@@ -108,7 +122,7 @@ export function VideoPlayer({
     void fetchSubtitleLanguages(project.id, controller.signal).then((languages) => {
       if (controller.signal.aborted) return;
       setSubtitleLanguages(languages);
-      setSubtitle(rememberedSubtitle(languages));
+      setSubtitle(remembered(languages));
     });
     return () => controller.abort();
   }, [project.id]);
@@ -186,6 +200,8 @@ export function VideoPlayer({
   // React's development mode mounts everything twice, so waiting a tick keeps that from fetching a link twice.
   useEffect(() => {
     if (!autoStart) return;
+    // The play button that was pressed is gone, so the player takes the focus and its keys work at once.
+    rootRef.current?.focus({ preventScroll: true });
     const timer = window.setTimeout(start, 0);
     return () => window.clearTimeout(timer);
   }, [autoStart, start]);
@@ -195,19 +211,22 @@ export function VideoPlayer({
     if (startFullscreen) rootRef.current?.requestFullscreen?.().catch(() => {});
   }, [startFullscreen]);
 
-  // Stops any download as soon as the player goes away.
+  // Stops any download as soon as the player goes away, remembering where the film got to.
   useEffect(() => {
     const video = videoRef.current;
+    const timers = { hide: hideTimer, tap: heldTap };
     return () => {
       abortRef.current?.abort();
       if (video) {
+        if (video.readyState > 0) saveWatched(project.id, video.currentTime, video.duration);
         video.pause();
         video.removeAttribute("src");
         video.load();
       }
-      window.clearTimeout(hideTimer.current);
+      window.clearTimeout(timers.hide.current);
+      window.clearTimeout(timers.tap.current);
     };
-  }, []);
+  }, [project.id]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -234,7 +253,8 @@ export function VideoPlayer({
     const root = rootRef.current;
     if (!root) return;
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting || document.fullscreenElement) return;
+      // A film in full screen or in its own floating window is still being watched.
+      if (entry.isIntersecting || document.fullscreenElement || document.pictureInPictureElement) return;
       wantsPlay.current = false;
       videoRef.current?.pause();
     });
@@ -285,12 +305,24 @@ export function VideoPlayer({
     setTime(next);
   }
 
+  function showFlash(content: ReactNode, side: Side = "") {
+    setFlash({ id: performance.now(), content, side });
+  }
+
+  function skip(seconds: number, side: Side = "") {
+    const video = videoRef.current;
+    if (!video) return;
+    seekTo(video.currentTime + seconds);
+    showFlash(`${seconds > 0 ? "+" : "\u2212"}${Math.abs(seconds)}s`, side);
+  }
+
   function changeVolume(next: number) {
     const video = videoRef.current;
     if (!video) return;
     const clamped = Math.min(1, Math.max(0, next));
     video.volume = clamped;
     video.muted = clamped === 0;
+    rememberVolume(clamped);
   }
 
   function toggleMute() {
@@ -318,16 +350,60 @@ export function VideoPlayer({
     setSubtitleAttempt(0);
     setSubtitleFailed(false);
     setSubtitle(next);
-    try {
-      window.localStorage.setItem(SUBTITLE_MEMORY, next);
-    } catch {
-      // Only a convenience, and the choice still applies to this video.
-    }
+    if (next) lastLanguage.current = next;
+    rememberSubtitle(next);
+  }
+
+  // C turns subtitles off, or back on in the language last chosen.
+  function toggleSubtitles() {
+    if (subtitleLanguages.length === 0) return;
+    const next = subtitle ? "" : lastLanguage.current || remembered(subtitleLanguages) || subtitleLanguages[0];
+    chooseSubtitle(next);
+    showFlash(next ? subtitleLabel(next) : "Subtitles off");
   }
 
   function changeSpeed(value: string) {
     setSpeed(value);
     if (videoRef.current) videoRef.current.playbackRate = Number(value);
+  }
+
+  function stepSpeed(step: number) {
+    const next = SPEEDS[Math.min(SPEEDS.length - 1, Math.max(0, SPEEDS.indexOf(speed) + step))];
+    changeSpeed(next);
+    showFlash(`${next}x`);
+  }
+
+  function togglePictureInPicture() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => {});
+    else void video.requestPictureInPicture().catch(() => {});
+  }
+
+  // A mouse click plays and pauses. On touch, a tap brings back the controls, a second tap plays or pauses, and two quick
+  // taps on either side skip, so a tap on a side waits a moment to see whether another follows.
+  function onPictureClick(event: MouseEvent<HTMLVideoElement>) {
+    if (stage !== "ready") return;
+    if (lastPointer.current !== "touch") {
+      togglePlay();
+      return;
+    }
+    const box = event.currentTarget.getBoundingClientRect();
+    const share = (event.clientX - box.left) / box.width;
+    const side = share < 0.35 ? -1 : share > 0.65 ? 1 : 0;
+    const quick = event.timeStamp - lastTap.current < DOUBLE_TAP_MS;
+    lastTap.current = event.timeStamp;
+    window.clearTimeout(heldTap.current);
+    if (quick && side !== 0) {
+      skip(side * SKIP_SECONDS, side < 0 ? "is-left" : "is-right");
+      return;
+    }
+    if (!controlsVisible) {
+      showControls();
+      return;
+    }
+    if (side === 0) togglePlay();
+    else heldTap.current = window.setTimeout(togglePlay, DOUBLE_TAP_MS);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -350,6 +426,22 @@ export function VideoPlayer({
         event.preventDefault();
         togglePlay();
         break;
+      case "j":
+      case "J":
+        skip(-SKIP_SECONDS);
+        break;
+      case "l":
+      case "L":
+        skip(SKIP_SECONDS);
+        break;
+      case "c":
+      case "C":
+        toggleSubtitles();
+        break;
+      case "<":
+      case ">":
+        stepSpeed(event.key === ">" ? 1 : -1);
+        break;
       case "m":
       case "M":
         toggleMute();
@@ -362,7 +454,7 @@ export function VideoPlayer({
       case "ArrowRight":
         if (onVolume || !video) return;
         event.preventDefault();
-        seekTo(video.currentTime + (event.key === "ArrowRight" ? SEEK_STEP_SECONDS : -SEEK_STEP_SECONDS));
+        skip(event.key === "ArrowRight" ? SEEK_STEP_SECONDS : -SEEK_STEP_SECONDS);
         break;
       case "ArrowUp":
       case "ArrowDown":
@@ -382,6 +474,11 @@ export function VideoPlayer({
         seekTo(video.duration);
         break;
       default:
+        // 1 to 9 jump a tenth of the way further each, and 0 back to the start.
+        if (/^[0-9]$/.test(event.key) && !onVolume && video && Number.isFinite(video.duration)) {
+          event.preventDefault();
+          seekTo((video.duration * Number(event.key)) / 10);
+        }
     }
   }
 
@@ -405,8 +502,13 @@ export function VideoPlayer({
     if (!video) return;
     sawMetadata.current = true;
     if (Number.isFinite(video.duration)) setDuration(video.duration);
-    if (lastTime.current > 0 && lastTime.current < video.duration) video.currentTime = lastTime.current;
+    if (lastTime.current > 0 && lastTime.current < video.duration) {
+      video.currentTime = lastTime.current;
+      setTime(lastTime.current);
+    }
     video.playbackRate = Number(speed);
+    video.volume = rememberedVolume();
+    setCanPictureInPicture(document.pictureInPictureEnabled === true && !video.disablePictureInPicture);
     setStage("ready");
   }
 
@@ -434,7 +536,8 @@ export function VideoPlayer({
       onFocusCapture={showControls}
     >
       <p id={hintId} className="sr-only">
-        Space or K plays and pauses. Left and right arrows skip 5 seconds. M mutes. F goes full screen.
+        Space or K plays and pauses. J and L skip 10 seconds, and the left and right arrows 5. M mutes, C turns subtitles on and
+        off, F goes full screen, and the numbers 0 to 9 jump through the film.
       </p>
 
       {/* No source at all until someone presses play. An iPhone cannot put the page itself in full screen, so a film
@@ -446,16 +549,11 @@ export function VideoPlayer({
         poster={project.poster_url ?? undefined}
         data-testid="video-element"
         className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
-        onClick={() => {
-          if (stage !== "ready") return;
-          // On touch the first tap only brings the controls back.
-          if (lastPointer.current === "touch" && !controlsVisible) {
-            showControls();
-            return;
-          }
-          togglePlay();
+        onClick={onPictureClick}
+        onDoubleClick={() => {
+          // On touch two quick taps skip instead.
+          if (lastPointer.current !== "touch") toggleFullscreen();
         }}
-        onDoubleClick={toggleFullscreen}
         onLoadedMetadata={onLoadedMetadata}
         onDurationChange={(event) => {
           const value = event.currentTarget.duration;
@@ -464,9 +562,10 @@ export function VideoPlayer({
         onTimeUpdate={(event) => {
           const now = event.currentTarget.currentTime;
           setTime(now);
-          if (now > 0) {
-            lastTime.current = now;
-            resumeAt.set(project.id, now);
+          if (now > 0) lastTime.current = now;
+          if (Math.abs(now - savedAt.current) >= SAVE_EVERY_SECONDS) {
+            savedAt.current = now;
+            saveWatched(project.id, now, event.currentTarget.duration);
           }
           // Real progress past the point of failure means the fresh link worked. A later expiry then
           // gets its own fresh link, while a file that never plays stops after one.
@@ -482,14 +581,16 @@ export function VideoPlayer({
           setPlaying(true);
           showControls();
         }}
-        onPause={() => {
+        onPause={(event) => {
           setPlaying(false);
           setControlsVisible(true);
+          saveWatched(project.id, event.currentTarget.currentTime, event.currentTarget.duration);
         }}
-        onEnded={() => {
+        onEnded={(event) => {
           wantsPlay.current = false;
           lastTime.current = 0;
-          resumeAt.delete(project.id);
+          // Watched to the end, so next time it starts over.
+          saveWatched(project.id, event.currentTarget.duration, event.currentTarget.duration);
           setPlaying(false);
           setControlsVisible(true);
         }}
@@ -506,6 +607,20 @@ export function VideoPlayer({
           <track key={`${code}-${subtitleAttempt}`} kind="subtitles" src={`/api/subtitles/${project.id}/${code}`} srcLang={code} label={subtitleLabel(code)} />
         ))}
       </video>
+
+      {fullscreen ? (
+        <div className={`player-top ${barVisible ? "" : "is-hidden"}`}>
+          <p dir="auto" className="display display-small line-clamp-1 text-[clamp(1.5rem,2.4vw,2.25rem)] leading-tight tracking-[0.018em]">
+            {project.title}
+          </p>
+        </div>
+      ) : null}
+
+      {flash ? (
+        <div key={flash.id} aria-hidden="true" data-testid="player-flash" className={`player-flash ${flash.side}`} onAnimationEnd={() => setFlash(null)}>
+          {flash.content}
+        </div>
+      ) : null}
 
       {shownCue ? (
         <div dir="auto" lang={subtitleFailed ? undefined : subtitle} data-testid="player-subtitle" className={`player-subtitle ${barVisible ? "is-raised" : ""}`}>
@@ -551,20 +666,7 @@ export function VideoPlayer({
 
       {stage === "ready" ? (
         <div data-testid="player-controls" className={`player-bar ${barVisible ? "" : "is-hidden"}`}>
-          <input
-            type="range"
-            min={0}
-            max={duration || 0}
-            step="any"
-            value={Math.min(time, duration || 0)}
-            aria-label="Seek"
-            aria-valuetext={`${formatClock(time)} of ${formatClock(duration)}`}
-            data-control="seek"
-            data-testid="player-seek"
-            className="player-range"
-            style={rangeStyle(percentOf(time, duration), percentOf(loadedTo, duration))}
-            onChange={(event) => seekTo(Number(event.target.value))}
-          />
+          <SeekBar time={time} duration={duration} loadedTo={loadedTo} onSeek={seekTo} />
           <div className="flex items-center">
             <button type="button" aria-label={playing ? "Pause" : "Play"} title={playing ? "Pause" : "Play"} data-testid="player-toggle" className={`${CONTROL} inline-flex`} onClick={togglePlay}>
               {playing ? <PauseIcon /> : <SmallPlayIcon />}
@@ -623,6 +725,18 @@ export function VideoPlayer({
                   onChange={chooseSubtitle}
                   onOpenChange={onMenuOpenChange}
                 />
+              ) : null}
+              {canPictureInPicture ? (
+                <button
+                  type="button"
+                  aria-label="Picture in picture"
+                  title="Picture in picture"
+                  data-testid="player-pip"
+                  className={`${CONTROL} hidden @md:inline-flex`}
+                  onClick={togglePictureInPicture}
+                >
+                  <PictureInPictureIcon />
+                </button>
               ) : null}
               <div className="hidden @md:block">
                 <PlayerMenu

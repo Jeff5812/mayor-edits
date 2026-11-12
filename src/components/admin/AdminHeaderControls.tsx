@@ -3,35 +3,34 @@
 import Link from "next/link";
 import type { FormEvent, MouseEvent } from "react";
 import { signOutAction, signOutEverywhereAction } from "@/app/admin/login/actions";
-import { anyUploadBusy, stopAllUploads, useUploadSummary } from "@/lib/media/upload-registry";
+import { type UploadSummary, anyUploadBusy, stopAllUploads, useUploadSummary } from "@/lib/media/upload-registry";
 
 // The parts of the admin header that need the browser: the upload indicator, and the account menu's items.
 
-// Keeps a running upload in sight from any admin page, and leads back to its project.
+const SAID: Record<Exclude<UploadSummary["kind"], "uploading">, string> = {
+  paused: "Upload paused",
+  offline: "Waiting for connection",
+  stopped: "Upload stopped",
+  subtitles: "Making subtitles",
+};
+
+// Keeps a running upload, or subtitles being made, in sight from any admin page, and leads back to its project.
 export function UploadIndicator({ className }: { className: string }) {
   const uploads = useUploadSummary();
   if (uploads.length === 0) return null;
   const [first] = uploads;
-  const label =
-    first.phase === "failed"
-      ? "Upload stopped"
-      : first.offline
-        ? "Waiting for connection"
-        : first.phase === "paused"
-          ? "Upload paused"
-          : uploads.length > 1
-            ? `${uploads.length} uploads`
-            : `${first.percent}%`;
+  const sending = first.kind === "uploading" && uploads.length === 1;
+  const label = first.kind === "uploading" ? (uploads.length > 1 ? `${uploads.length} uploads` : `${first.percent}%`) : SAID[first.kind];
   return (
     <Link href={`/admin/projects/${first.projectId}`} className={className} data-testid="upload-indicator">
       <span aria-hidden="true" className="rec-light" />
-      {first.phase === "uploading" && !first.offline && uploads.length === 1 ? <span className="max-sm:sr-only">Uploading </span> : null}
+      {sending ? <span className="max-sm:sr-only">Uploading </span> : null}
       <span className="tabular-nums">{label}</span>
     </Link>
   );
 }
 
-const STOPS_UPLOAD = "A video is still uploading, and signing out stops it. Sign out anyway?";
+const STOPS_UPLOAD = "A video is still uploading or getting its subtitles, and signing out stops it. Sign out anyway?";
 
 function signingOut(event: FormEvent) {
   if (anyUploadBusy() && !window.confirm(STOPS_UPLOAD)) {

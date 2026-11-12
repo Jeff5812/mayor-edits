@@ -512,6 +512,56 @@
     animation: scrub-wait 1200ms ease-in-out infinite;
   }
 
+  /* The running time in the frame's corner, as every video gallery shows it: a quiet black glass chip at rest, whose edge
+     catches the ember like the site's buttons when the card is pointed at. Above a hover preview, below the play button. */
+  .frame-time {
+    background:
+      linear-gradient(rgb(7 8 11 / 0.78), rgb(7 8 11 / 0.78)) padding-box,
+      linear-gradient(95deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.06)) border-box;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: #fff;
+    font-family: var(--font-time);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    inset: auto 0.5rem 0.5rem auto;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    padding: 0.3125rem 0.5rem;
+    pointer-events: none;
+    position: absolute;
+    transition:
+      background 320ms var(--ease-ui),
+      box-shadow 320ms var(--ease-ui);
+    z-index: 6;
+  }
+
+  .card:hover .frame-time,
+  .card:focus-within .frame-time {
+    background:
+      linear-gradient(rgb(7 8 11 / 0.86), rgb(7 8 11 / 0.86)) padding-box,
+      linear-gradient(95deg, var(--hot) 0%, rgb(var(--ember)) 18%, rgb(var(--ember) / 0.5) 55%, rgb(var(--teal) / 0.45) 100%) border-box;
+    box-shadow: -3px 0 10px -4px rgb(var(--ember) / 0.55);
+  }
+
+  /* On a phone's small frame the chip shrinks into the corner, clear of the play button. */
+  @container (max-width: 15rem) {
+    .frame-time {
+      font-size: 0.625rem;
+      inset: auto 0.25rem 0.25rem auto;
+      padding: 0.1875rem 0.3125rem;
+    }
+  }
+
+  /* How far this visitor got last time: an ember line along the frame's foot, over a dim track. */
+  .frame-watched {
+    background: linear-gradient(to right, rgb(var(--ember)) var(--watched), rgb(255 255 255 / 0.28) var(--watched));
+    block-size: 3px;
+    inset: auto 0 0;
+    pointer-events: none;
+    position: absolute;
+  }
+
   /* A frame's stage. Its width sets the size of what sits on it, so a play button suits the lead and a small card alike. */
   .frame-stage {
     container-type: inline-size;
@@ -573,7 +623,7 @@
   /* A small frame, like a film's row on a phone, gets a smaller button, so the picture still shows around it. */
   @container (max-width: 15rem) {
     .play-disc {
-      --disc: 2.5rem;
+      --disc: 2.25rem;
     }
   }
 
@@ -695,6 +745,80 @@
   .player-bar.is-hidden {
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* The time under the pointer, above the seek line, kept inside the frame at either end. */
+  .player-scrub-time {
+    background: rgb(20 22 27 / 0.94);
+    border-radius: 4px;
+    bottom: calc(100% + 0.25rem);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+    font-family: var(--font-time);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    left: clamp(1.75rem, var(--at), calc(100% - 1.75rem));
+    line-height: 1;
+    padding: 0.3125rem 0.4375rem;
+    pointer-events: none;
+    position: absolute;
+    translate: -50% 0;
+    white-space: nowrap;
+  }
+
+  /* In full screen the film's title sits along the top while the controls show. */
+  .player-top {
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.72), transparent);
+    inset: 0 0 auto;
+    padding: 1.25rem 1.5rem 3.5rem;
+    pointer-events: none;
+    position: absolute;
+    transition: opacity 200ms var(--ease-ui);
+    z-index: 2;
+  }
+
+  .player-top.is-hidden {
+    opacity: 0;
+  }
+
+  /* What a key or a double tap just did, shown for a moment: in the middle, or on the side a double tap skipped to. */
+  .player-flash {
+    align-items: center;
+    animation: player-flash 700ms var(--ease-ui) forwards;
+    background: rgb(7 8 11 / 0.6);
+    border-radius: 999px;
+    display: flex;
+    font-family: var(--font-time);
+    font-size: 0.875rem;
+    justify-content: center;
+    left: 50%;
+    min-block-size: 3.5rem;
+    min-inline-size: 3.5rem;
+    padding: 0 1rem;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    translate: -50% -50%;
+    white-space: nowrap;
+    z-index: 3;
+  }
+
+  .player-flash.is-left {
+    left: 20%;
+  }
+
+  .player-flash.is-right {
+    left: 80%;
+  }
+
+  @keyframes player-flash {
+    0%,
+    45% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+    }
   }
 
   @container (min-width: 36rem) {

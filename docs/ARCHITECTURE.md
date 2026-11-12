@@ -13,6 +13,7 @@ commit on `main`. Where they disagree with this file, this file wins.
 | Vercel | Hobby (free) | The site | Functions cap requests at 4.5 MB, so video never passes through it. Cron runs once a day |
 | Supabase | Free | `projects`, `admins`, login, `posters` bucket | Pauses after a week of low database activity, hence `/api/keepalive` |
 | Cloudflare R2 | Pay as you go | Video files, private | 10 GB free, then $0.015 per GB a month. Bandwidth is free. Unfinished uploads vanish after 7 days |
+| Cloudflare Workers AI | Same account as R2 | Nothing: it hears and translates for automatic subtitles | 10,000 free neurons a day. A 19-minute film costs about 900 to hear, plus a little to translate |
 
 ## How it works
 
@@ -26,7 +27,9 @@ film is a row beneath it, its frame beside its title. On desktop the others fill
 half empty ([reel-layout.ts](../src/components/site/reel-layout.ts), with a test). A lone second film takes the lead's width
 beneath it, and the headline stays beside the two as the page scrolls. Titles stop at two lines, a phone's rows all share the
 height of their picture, and the frames of one desktop row share one height. The default frame shows only while there is no film
-at all. The page is the same for everyone, signed in or not: uploading and editing only happen in the admin.
+at all. The page is the same for everyone, signed in or not: uploading and editing only happen in the admin. Checked with 20 and
+25 films at phone, tablet and desktop sizes: every row stays full, with no sideways scroll. As in any video gallery, each frame
+carries its running time in a corner chip, and a film a visitor stopped part-way through shows how far they got.
 
 **Upload.** The browser asks `prepareVideoUpload` what to send. It checks the admin, then returns signed links for each
 missing 8 MiB part. The browser sends the parts straight to R2, three at a time, with retries
@@ -37,15 +40,20 @@ dropped connection or a closed tab carries on when the same file is chosen again
 
 **Uploads belong to the tab.** [upload-registry.ts](../src/lib/media/upload-registry.ts) holds one upload per project for the
 life of the tab, so the owner can move around the admin, or start the next project, while one runs. A project's page only shows
-its upload, and the admin header shows any that are running. The registry also takes the first frame as a poster when a new
-video arrives, keeps a phone's screen on while anything uploads, and asks before the tab is closed.
+its upload, and the admin header shows any that are running. When a new video arrives the registry saves the thumbnail chosen
+with it, or else takes a frame, starts its automatic subtitles, keeps a phone's screen on while anything runs, and asks before
+the tab is closed.
 
 **Playback.** Nothing loads until a visitor presses play. `/api/playback/[id]` reads the project as an anonymous visitor,
 so row-level security only finds published ones, then returns a one-hour signed link. The player fetches a new link if one
 expires, and that also fails once a project is unpublished.
 
-**Posters.** A frame from the video is saved automatically after an upload, and the owner can replace it. They are resized
-in the browser to at most 1600 px and about 350 KB, because Supabase Free has no image transforms.
+**Thumbnails.** Every card is 16:9, so every thumbnail is too: 1280 x 720, the size of a YouTube thumbnail. An image of any other
+shape is cropped to its 16:9 middle in the browser, never enlarged, and kept near 350 KB, because Supabase Free has no image
+transforms ([validation.ts](../src/lib/media/validation.ts), with tests). An image already that shape and light enough is kept
+untouched. The owner can choose one on "New project", alongside the video, or on the project page, where the panel shows it at
+the card's shape, says the size it was saved at, and offers a frame of the video found with a slider. Without one, a frame from
+the video is taken after the upload. The database still calls it `poster_path`.
 
 ## Security
 
@@ -109,7 +117,14 @@ scrolled away. Previews skip phones, people who asked for less motion, and data-
 
 A touch screen has no hover and a phone's frames are too small to watch in, so there play opens the film full screen, and leaving
 full screen puts the card back. An iPhone cannot put a page in full screen, so its film leaves out `playsInline` and opens the
-iPhone's own player. Each film remembers where it was left during the visit, so pressing play again carries on from there.
+iPhone's own player.
+
+The player keeps the habits of the big video sites. Space or K plays, J and L skip ten seconds, the arrows five, 0 to 9 jump
+through the film, C turns subtitles on and off, the < and > keys change the speed, M mutes and F goes full screen. Pointing along
+the seek line shows the time there, two quick taps on either side of a touch screen skip, full screen shows the title along the
+top, and picture in picture is offered where the browser has it. This browser remembers the volume, the subtitle language, and
+where each film was left ([watch-progress.ts](../src/lib/media/watch-progress.ts), with tests), so play carries on from there on a
+later visit too. Nothing about viewing leaves the device.
 
 ## Subtitles
 
@@ -121,6 +136,17 @@ offers them, off by default, and only the chosen language's file downloads. Thos
 unless the video asks for permission too. Both routes answer only for published projects. The player draws the words itself so they
 sit clear of the controls, except in an iPhone's own full screen, where only the browser can draw over the video. A browser never
 retries a track file that failed, so the player asks twice more with a new track element, then tells the viewer.
+
+**Automatic subtitles** spare the owner from making files at all. When a new video finishes uploading, or when the owner presses
+"Make subtitles automatically", the owner's browser decodes the video's sound at 16 kHz and cuts it into pieces of under half a
+minute, at quiet moments so no word is split ([speech-audio.ts](../src/lib/media/speech-audio.ts)). Each piece goes through a
+server action to Whisper on Cloudflare Workers AI, which returns timed text and the spoken language
+([auto-subtitles.ts](../src/lib/media/auto-subtitles.ts), [workers-ai.ts](../src/lib/ai/workers-ai.ts)). The lines are then
+translated by Gemma, in batches that must come back line for line, into the languages of the featured film, or of the first film
+with subtitles. Every file is saved through the same check as an uploaded one. It only ever adds missing languages, so a file
+corrected by hand is never replaced: to remake one, remove it first. The token stays on the server, in `CLOUDFLARE_AI_TOKEN`, and
+without it the feature hides itself. For a stored video the browser fetches the video first, which needs the bucket's CORS rules
+to allow GET from the site. If that fails, the panel asks for the file on the device instead.
 
 ## Tests
 
@@ -144,6 +170,11 @@ administrator and a generated MP4, which it describes at the top.
   screen on. The public page lost its owner controls. Driven in a real browser against a local stand-in for Supabase and the
   real R2 bucket: running times re-checked from the real files, playback stopping on leaving, a 15 MB upload finishing while
   the owner was on another page, its poster, publishing, a fresh "New project", one featured film, deleting, and signing out.
-- **Not yet proven:** a full 500 MB upload, and an owner's upload on the live site (the test administrator was removed first).
+- 2026-11-12: thumbnails as 16:9 at 1280 x 720 with a size note, a frame slider, and a choice on "New project"; automatic
+  subtitles; a running-time chip on every frame, and the reel checked with 20 and 25 films; the player's keys, seek-line time,
+  double tap, picture in picture, title in full screen, and remembered volume and viewing position. Driven in a real browser
+  against local stand-ins: the player with the real videos, and the admin with the real R2 bucket.
+- **Not yet proven:** a full 500 MB upload, an owner's upload on the live site (the test administrator was removed first), and
+  automatic subtitles end to end, which wait for the Cloudflare AI token.
 - Measured on one slow connection (about 1 to 8 Mbps down) on 2026-11-05: a page view requests nothing from R2, and 2 Mbps
   video played smoothly where 8 Mbps kept stalling. Each video is one file at one quality, so bitrate decides who can watch it.

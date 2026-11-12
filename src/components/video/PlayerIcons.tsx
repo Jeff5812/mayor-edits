@@ -27,6 +27,16 @@ export function SmallPlayIcon() {
   );
 }
 
+// A small screen inside a big one: keep watching in a floating window.
+export function PictureInPictureIcon() {
+  return (
+    <Icon>
+      <rect {...STROKE} x="3" y="5" width="18" height="14" rx="2" />
+      <rect x="12" y="11.25" width="6.5" height="5.25" rx="1" fill="currentColor" />
+    </Icon>
+  );
+}
+
 export function PauseIcon() {
   return (
     <Icon>

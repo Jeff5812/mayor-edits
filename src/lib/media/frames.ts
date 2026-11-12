@@ -1,6 +1,6 @@
 // Browser only. Reads duration and poster frames in a detached video element: from a local file through an object URL, so the
 // file is never loaded into memory, or from a stored video's link. Every object URL is revoked when the work finishes.
-import { POSTER_MAX_BYTES, POSTER_TARGET_BYTES, fitWithin } from "./validation";
+import { POSTER_MAX_BYTES, POSTER_TARGET_BYTES, isThumbnailShape, thumbnailCrop } from "./validation";
 
 export class UndecodableVideoError extends Error {
   constructor() {
@@ -79,18 +79,26 @@ async function encodePoster(canvas: HTMLCanvasElement): Promise<Blob> {
   throw new Error("The image is still over the 5 MB limit after compressing it. Please choose a simpler image.");
 }
 
-function drawToCanvas(source: CanvasImageSource, sourceWidth: number, sourceHeight: number): HTMLCanvasElement {
-  const { width, height } = fitWithin(sourceWidth, sourceHeight);
+// The 16:9 middle of a picture, at thumbnail size (see thumbnailCrop).
+function drawThumbnail(source: CanvasImageSource, sourceWidth: number, sourceHeight: number): HTMLCanvasElement {
+  const crop = thumbnailCrop(sourceWidth, sourceHeight);
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = crop.width;
+  canvas.height = crop.height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("This browser cannot create images.");
-  context.drawImage(source, 0, 0, width, height);
+  context.imageSmoothingQuality = "high";
+  context.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.width, crop.height);
   return canvas;
 }
 
-// Grabs one frame as a JPEG, at most 1600px wide and light enough for the portfolio grid.
+// The frame a video is showing now, as a 16:9 JPEG thumbnail light enough for a page full of cards.
+export async function thumbnailFromVideo(video: HTMLVideoElement): Promise<Blob> {
+  if (!video.videoWidth || !video.videoHeight) throw new UndecodableVideoError();
+  return encodePoster(drawThumbnail(video, video.videoWidth, video.videoHeight));
+}
+
+// Grabs one frame of a file as a thumbnail, by default a little way in, past any fade from black.
 export async function captureVideoFrame(file: Blob, atSeconds?: number): Promise<Blob> {
   return withVideo(file, async (video) => {
     if (!video.videoWidth || !video.videoHeight) throw new UndecodableVideoError();
@@ -112,12 +120,13 @@ export async function captureVideoFrame(file: Blob, atSeconds?: number): Promise
       video.currentTime = Math.max(0, Math.min(target, Math.max(0, duration - 0.05)));
     });
 
-    return encodePoster(drawToCanvas(video, video.videoWidth, video.videoHeight));
+    return thumbnailFromVideo(video);
   });
 }
 
-// Custom posters are kept as they are when they are already light enough, and redrawn when they are not.
-export async function preparePosterImage(file: File): Promise<Blob> {
+// An image the owner chose as a thumbnail, with the size it came in: kept as it is when it is already 16:9 and light enough,
+// and otherwise cropped to its 16:9 middle and redrawn at up to 1280 x 720, so every card on the reel has the same shape.
+export async function prepareThumbnailImage(file: File): Promise<{ image: Blob; width: number; height: number }> {
   const url = URL.createObjectURL(file);
   try {
     const image = new Image();
@@ -126,9 +135,9 @@ export async function preparePosterImage(file: File): Promise<Blob> {
       image.onerror = () => reject(new Error("This image could not be read. Please choose another one."));
       image.src = url;
     });
-    const withinWidth = image.naturalWidth <= fitWithin(image.naturalWidth, image.naturalHeight).width;
-    if (withinWidth && file.size <= POSTER_TARGET_BYTES) return file;
-    return await encodePoster(drawToCanvas(image, image.naturalWidth, image.naturalHeight));
+    const { naturalWidth: width, naturalHeight: height } = image;
+    if (isThumbnailShape(width, height) && file.size <= POSTER_TARGET_BYTES) return { image: file, width, height };
+    return { image: await encodePoster(drawThumbnail(image, width, height)), width, height };
   } finally {
     URL.revokeObjectURL(url);
   }

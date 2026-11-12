@@ -4,11 +4,13 @@ import {
   buildObjectName,
   cleanDuration,
   extensionOf,
-  fitWithin,
+  isThumbnailShape,
   isUuid,
   looksLikeMp4Bytes,
   objectBelongsToProject,
   playbackWarning,
+  thumbnailCrop,
+  thumbnailNote,
   validatePosterFile,
   validateVideoFile,
 } from "./validation";
@@ -115,11 +117,32 @@ describe("validatePosterFile", () => {
   });
 });
 
-describe("fitWithin", () => {
-  it("shrinks to the width limit and never enlarges", () => {
-    expect(fitWithin(3200, 1800)).toEqual({ width: 1600, height: 900 });
-    expect(fitWithin(800, 600)).toEqual({ width: 800, height: 600 });
-    expect(fitWithin(1600, 900)).toEqual({ width: 1600, height: 900 });
+describe("thumbnails", () => {
+  it("takes the 16:9 middle of any image, at 1280 x 720", () => {
+    // A tall phone picture keeps its middle band.
+    expect(thumbnailCrop(1080, 1920)).toEqual({ sx: 0, sy: 656, sw: 1080, sh: 608, width: 1080, height: 608 });
+    // A wide one keeps its middle.
+    expect(thumbnailCrop(4000, 1000)).toEqual({ sx: 1111, sy: 0, sw: 1778, sh: 1000, width: 1280, height: 720 });
+    // A 4K frame is only made smaller.
+    expect(thumbnailCrop(3840, 2160)).toEqual({ sx: 0, sy: 0, sw: 3840, sh: 2160, width: 1280, height: 720 });
+  });
+
+  it("never enlarges a small image", () => {
+    expect(thumbnailCrop(640, 360)).toMatchObject({ width: 640, height: 360 });
+  });
+
+  it("keeps an image that is already the right shape and size", () => {
+    expect(isThumbnailShape(1280, 720)).toBe(true);
+    expect(isThumbnailShape(1920, 1080)).toBe(false);
+    expect(isThumbnailShape(1280, 960)).toBe(false);
+  });
+
+  it("tells the owner the size saved, any crop, and when it is too small to look sharp", () => {
+    expect(thumbnailNote(1920, 1080)).toBe("Thumbnail saved at 1280 × 720.");
+    expect(thumbnailNote(1080, 1920)).toBe("Thumbnail saved at 1080 × 608, cropped to 16:9 to fit the cards.");
+    expect(thumbnailNote(640, 360)).toBe("Thumbnail saved at 640 × 360. It is on the small side, so it may look soft in the big frame. 1280 × 720 is best.");
+    // A pixel off 16:9 is not worth calling a crop.
+    expect(thumbnailNote(1280, 721)).toBe("Thumbnail saved at 1280 × 720.");
   });
 });
 

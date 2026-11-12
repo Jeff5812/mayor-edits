@@ -77,30 +77,20 @@ function ProjectCard({ project, size, order }: { project: PublicProject; size: R
             />
           ) : null}
           <div className="frame-shade" />
-        </div>
-        <CardPlayer project={project} />
-      </div>
-      <div className={`grid gap-1 px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2 ${row ? "max-lg:min-w-0 max-lg:flex-1 max-lg:py-1 max-lg:ps-0" : ""}`}>
-        <div className="flex items-baseline justify-between gap-4">
-          <h3 dir="auto" className={`display display-small min-w-0 break-words tracking-[0.018em] ${SIZE[size].title}`}>
-            {project.title}
-          </h3>
           {clock ? (
-            // A phone's row has no room beside the title, so its running time joins the line below instead.
-            <time
-              dateTime={`PT${project.duration_seconds}S`}
-              className={`shrink-0 font-time text-sm leading-none tracking-[-0.01em] text-ash ${row ? "max-sm:hidden" : ""}`}
-            >
+            // In the frame's corner, the way every video gallery shows a running time.
+            <time dateTime={`PT${project.duration_seconds}S`} className="frame-time">
               {clock}
             </time>
           ) : null}
         </div>
-        {details || (row && clock) ? (
-          <p className="text-sm leading-5 text-mute transition-colors duration-200 [.card:hover_&]:text-ash">
-            {row && clock ? <span className="font-time tracking-[-0.01em] text-ash sm:hidden">{clock}{details ? " · " : ""}</span> : null}
-            {details}
-          </p>
-        ) : null}
+        <CardPlayer project={project} />
+      </div>
+      <div className={`grid gap-1 px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2 ${row ? "max-lg:min-w-0 max-lg:flex-1 max-lg:py-1 max-lg:ps-0" : ""}`}>
+        <h3 dir="auto" className={`display display-small min-w-0 break-words tracking-[0.018em] ${SIZE[size].title}`}>
+          {project.title}
+        </h3>
+        {details ? <p className="text-sm leading-5 text-mute transition-colors duration-200 [.card:hover_&]:text-ash">{details}</p> : null}
         {project.description ? (
           <p className={`mt-1 line-clamp-2 max-w-[62ch] text-sm leading-relaxed text-mute ${SIZE[size].description}`}>{project.description}</p>
         ) : null}

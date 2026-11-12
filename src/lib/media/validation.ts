@@ -15,10 +15,11 @@ const SUGGESTED_EXPORT = "H.264 MP4 at about 4 Mbps";
 
 // The posters bucket refuses anything over 5 MB (see supabase/migrations).
 export const POSTER_MAX_BYTES = 5 * 1024 * 1024;
-// Cards load every poster on the page, so they are kept small enough not to slow it down.
+// Cards load every thumbnail on the page, so they are kept small enough not to slow it down.
 export const POSTER_TARGET_BYTES = 350 * 1024;
-// Sharp in the large lead card, which is about 900 CSS pixels wide on a laptop.
-export const POSTER_MAX_WIDTH = 1600;
+// Thumbnails are 16:9 at 1280 x 720: the size of a YouTube thumbnail, and sharp in the reel's biggest frame on a laptop.
+export const THUMBNAIL_WIDTH = 1280;
+export const THUMBNAIL_HEIGHT = 720;
 export const POSTER_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const POSTER_ACCEPT = POSTER_TYPES.join(",");
 
@@ -96,10 +97,38 @@ export function validatePosterFile(file: { name: string; type: string }): Poster
   return { ok: false, message: `"${file.name}" cannot be used as a poster. Please choose a JPEG, PNG or WebP image.` };
 }
 
-// Width and height a frame or image should be drawn at: never wider than the limit, never enlarged.
-export function fitWithin(width: number, height: number, maxWidth = POSTER_MAX_WIDTH) {
-  if (width <= maxWidth) return { width, height };
-  return { width: maxWidth, height: Math.round((height * maxWidth) / width) };
+// The part of an image or frame that becomes the thumbnail, and its size: the largest 16:9 area at the centre, drawn at
+// 1280 x 720, or smaller when the original is smaller, because enlarging only blurs it.
+export function thumbnailCrop(width: number, height: number) {
+  const ratio = THUMBNAIL_WIDTH / THUMBNAIL_HEIGHT;
+  const sw = Math.min(width, Math.round(height * ratio));
+  const sh = Math.min(height, Math.round(sw / ratio));
+  const outWidth = Math.min(THUMBNAIL_WIDTH, sw);
+  return {
+    sx: Math.round((width - sw) / 2),
+    sy: Math.round((height - sh) / 2),
+    sw,
+    sh,
+    width: outWidth,
+    height: Math.round(outWidth / ratio),
+  };
+}
+
+// Already a thumbnail as it stands: 16:9 and no wider than needed, so it can be kept untouched.
+export function isThumbnailShape(width: number, height: number): boolean {
+  return width <= THUMBNAIL_WIDTH && Math.abs(width / height - THUMBNAIL_WIDTH / THUMBNAIL_HEIGHT) < 0.01;
+}
+
+// Narrower than this and a thumbnail looks soft in the reel's big frame on a sharp screen.
+const SHARP_THUMBNAIL_WIDTH = 960;
+
+// What the owner is told after choosing a thumbnail, worked out from the size of the image they chose.
+export function thumbnailNote(width: number, height: number): string {
+  const crop = thumbnailCrop(width, height);
+  const cropped = crop.sw < width - 1 || crop.sh < height - 1;
+  const saved = `Thumbnail saved at ${crop.width} × ${crop.height}${cropped ? ", cropped to 16:9 to fit the cards" : ""}.`;
+  if (crop.width >= SHARP_THUMBNAIL_WIDTH) return saved;
+  return `${saved} It is on the small side, so it may look soft in the big frame. ${THUMBNAIL_WIDTH} × ${THUMBNAIL_HEIGHT} is best.`;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
