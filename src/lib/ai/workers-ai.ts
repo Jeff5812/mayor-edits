@@ -10,7 +10,7 @@ export function isAiConfigured(): boolean {
   return Boolean(process.env.R2_ACCOUNT_ID && process.env.CLOUDFLARE_AI_TOKEN);
 }
 
-export class AiError extends Error {
+class AiError extends Error {
   constructor(
     readonly status: number,
     message: string,
@@ -64,7 +64,7 @@ const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 const nameOf = (code: string) => languageNames.of(code) ?? code;
 
 // The lines of a JSON reply, or null when the reply was not that shape.
-export function readLines(reply: unknown): string[] | null {
+function readLines(reply: unknown): string[] | null {
   let value = reply;
   if (typeof reply === "string") {
     const start = reply.indexOf("{");

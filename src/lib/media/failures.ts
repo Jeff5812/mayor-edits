@@ -48,7 +48,7 @@ export function explainPosterFailure(failure: StorageFailure): string {
   if (code === 401 || code === 403 || /row-level security/i.test(failure.message ?? "")) {
     return "This account is not allowed to save images, or its session has ended. Please sign in again, then try once more.";
   }
-  if (code === 413) return "This image is over the 5 MB limit for posters. Please choose a smaller one.";
+  if (code === 413) return "This image is over the 5 MB limit for thumbnails. Please choose a smaller one.";
   if (code === 415) return "Storage does not accept this image type. Please choose a JPEG, PNG or WebP image.";
   if (code !== null) return `Storage refused this image (error ${code}). Please try again.`;
   return explainFailure("The image could not be uploaded.", failure.originalError ?? failure);

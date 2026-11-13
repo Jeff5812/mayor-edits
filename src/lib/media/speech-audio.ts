@@ -3,7 +3,7 @@
 
 export const SPEECH_SAMPLE_RATE = 16_000;
 // Whisper reads half a minute at a time, and a piece this long stays inside the 1 MB a server action accepts.
-export const LONGEST_PIECE_SECONDS = 28;
+const LONGEST_PIECE_SECONDS = 28;
 const SHORTEST_PIECE_SECONDS = 18;
 // The cut lands in the quietest 50 ms between the shortest and longest length, so it rarely falls mid-word.
 const WINDOW_SECONDS = 0.05;

@@ -1,8 +1,8 @@
-// Browser only. Reads duration and poster frames in a detached video element: from a local file through an object URL, so the
+// Browser only. Reads duration and thumbnail frames in a detached video element: from a local file through an object URL, so the
 // file is never loaded into memory, or from a stored video's link. Every object URL is revoked when the work finishes.
 import { POSTER_MAX_BYTES, POSTER_TARGET_BYTES, defaultFrameAt, isThumbnailShape, thumbnailCrop } from "./validation";
 
-export class UndecodableVideoError extends Error {
+class UndecodableVideoError extends Error {
   constructor() {
     super("This browser cannot decode this video.");
     this.name = "UndecodableVideoError";

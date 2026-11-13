@@ -4,6 +4,7 @@ import { posterUrl } from "@/lib/media/poster-url";
 import { createSupabasePublicClient } from "@/lib/supabase/server";
 import type { PublicProject } from "@/types/domain";
 import { PORTFOLIO_TAG } from "./portfolio-tag";
+import { cleanTitle } from "./schema";
 
 // Never add video_path here: the public page receives only what is listed, and playback goes through
 // /api/playback/[id].
@@ -38,5 +39,6 @@ export async function getPublishedProjects(): Promise<PublicProject[]> {
     .abortSignal(AbortSignal.timeout(QUERY_TIMEOUT_MS));
   if (error) throw new Error(`The portfolio could not be loaded: ${error.message}`);
 
-  return (data as PublicProjectRow[]).map(({ poster_path, ...row }) => ({ ...row, poster_url: posterUrl(poster_path) }));
+  // Titles saved before titles were tidied on saving still read as names, so "JADE_TRISTEN_BENNING" shows as "JADE TRISTEN BENNING".
+  return (data as PublicProjectRow[]).map(({ poster_path, ...row }) => ({ ...row, title: cleanTitle(row.title), poster_url: posterUrl(poster_path) }));
 }

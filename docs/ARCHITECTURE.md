@@ -25,7 +25,8 @@ visits never touch the database. The page never reads cookies and never receives
 featured one, is the lead: the one big frame on every screen, beside the headline on desktop. On a phone and a tablet each other
 film is a row beneath it, its frame beside its title. On desktop the others fill rows of two, then three, so a row is never left
 half empty ([reel-layout.ts](../src/components/site/reel-layout.ts), with a test). A lone second film takes the lead's width
-beneath it, and the headline stays beside the two as the page scrolls. Titles stop at two lines, a phone's rows all share the
+beneath it, and the headline stays beside the two as the page scrolls. Titles read as names everywhere, because the page shows
+them the way saving tidies them, underscores as spaces, even for titles saved before that rule. Titles stop at two lines, a phone's rows all share the
 height of their picture, and the frames of one desktop row share one height. The default frame shows only while there is no film
 at all. The page is the same for everyone, signed in or not: uploading and editing only happen in the admin. Checked with 20 and
 25 films at phone, tablet and desktop sizes: every row stays full, with no sideways scroll. As in any video gallery, each frame

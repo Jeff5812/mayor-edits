@@ -101,7 +101,7 @@ test("the owner uploads a video with visible progress, and it stays private as a
   await expect(page.getByTestId("upload-progress")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("upload-success")).toBeVisible({ timeout: 8 * 60 * 1000 });
 
-  // A frame from the video became the poster, and the owner can watch the draft.
+  // A frame from the video became the thumbnail, and the owner can watch the draft.
   await expect(page.getByAltText("Current thumbnail")).toBeVisible({ timeout: 60_000 });
   await page.getByRole("button", { name: "Watch this video" }).click();
   await expect(page.locator("video[src]")).toBeVisible();

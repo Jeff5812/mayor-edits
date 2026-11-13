@@ -65,7 +65,7 @@ function ProjectCard({ project, size, order }: { project: PublicProject; size: R
         <div className="frame-inner">
           <DefaultFrame />
           {project.poster_url ? (
-            // Posters are sized when they are uploaded, so nothing downstream needs to re-encode them.
+            // Thumbnails are sized when they are uploaded, so nothing downstream needs to re-encode them.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={project.poster_url}

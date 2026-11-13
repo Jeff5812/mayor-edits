@@ -1,4 +1,4 @@
-// Browser only. Posters go straight to the public bucket as the signed-in owner, and row-level security
+// Browser only. Thumbnails go straight to the public posters bucket as the signed-in owner, and row-level security
 // decides whether that is allowed. Afterwards the project is pointed at the new image.
 import { setProjectPoster } from "@/lib/projects/actions";
 import type { ActionResult } from "@/lib/projects/action-types";

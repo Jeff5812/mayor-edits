@@ -94,7 +94,7 @@ export type PosterValidation = { ok: true } | { ok: false; message: string };
 // Size is checked after resizing, so only the type can rule an image out here.
 export function validatePosterFile(file: { name: string; type: string }): PosterValidation {
   if ((POSTER_TYPES as readonly string[]).includes(file.type)) return { ok: true };
-  return { ok: false, message: `"${file.name}" cannot be used as a poster. Please choose a JPEG, PNG or WebP image.` };
+  return { ok: false, message: `"${file.name}" cannot be used as a thumbnail. Please choose a JPEG, PNG or WebP image.` };
 }
 
 // The part of an image or frame that becomes the thumbnail, and its size: the largest 16:9 area at the centre, drawn at

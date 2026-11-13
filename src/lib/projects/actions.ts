@@ -405,20 +405,20 @@ export async function cancelVideoUpload(projectId: string, target: UploadTarget 
 export async function setProjectPoster(projectId: string, posterPath: string): Promise<ActionResult<Project>> {
   return asAdmin(async (supabase) => {
     if (!objectBelongsToProject(posterPath, projectId)) {
-      return { ok: false, error: "The poster details did not match this project, so it was not attached." };
+      return { ok: false, error: "The thumbnail details did not match this project, so it was not attached." };
     }
     const project = await getProject(supabase, projectId);
     if (!project) return { ok: false, error: NOT_FOUND };
 
     const { data, error } = await supabase.from("projects").update({ poster_path: posterPath }).eq("id", projectId).select("*").single();
-    if (error) return failedWrite("The poster could not be saved", error.message);
+    if (error) return failedWrite("The thumbnail could not be saved", error.message);
 
     refreshEverything();
 
     if (project.poster_path && project.poster_path !== posterPath) {
       const left = await removePosters(supabase, projectId, [project.poster_path]);
       if (left.length > 0) {
-        return { ok: true, data: data as Project, notice: "The new poster is live, but the old image could not be removed." };
+        return { ok: true, data: data as Project, notice: "The new thumbnail is live, but the old image could not be removed." };
       }
     }
     return { ok: true, data: data as Project };
@@ -432,9 +432,9 @@ export async function removeProjectPoster(projectId: string): Promise<ActionResu
     if (!project.poster_path) return { ok: true, data: project };
 
     const left = await removePosters(supabase, projectId, [project.poster_path]);
-    if (left.length > 0) return { ok: false, error: "The poster could not be removed. Please try again." };
+    if (left.length > 0) return { ok: false, error: "The thumbnail could not be removed. Please try again." };
     const { data, error } = await supabase.from("projects").update({ poster_path: null }).eq("id", projectId).select("*").single();
-    if (error) return failedWrite("The poster could not be removed", error.message);
+    if (error) return failedWrite("The thumbnail could not be removed", error.message);
 
     refreshEverything();
     return { ok: true, data: data as Project };

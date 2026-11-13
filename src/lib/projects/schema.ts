@@ -22,7 +22,7 @@ function oneLine(value: string): string {
 }
 
 // A title reads as a name: "JADE_TRISTEN_BENNING" is "JADE TRISTEN BENNING", whatever was typed or pasted.
-function cleanTitle(value: unknown): string {
+export function cleanTitle(value: unknown): string {
   return oneLine(text(value).replace(/_+/g, " "));
 }
 
