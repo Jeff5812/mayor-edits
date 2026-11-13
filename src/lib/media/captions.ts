@@ -84,8 +84,8 @@ export const TRANSLATION_FAILED = "The translation did not come back right.";
 
 export async function translateLines(
   texts: string[],
-  translate: (batch: string[]) => Promise<string[] | null>,
-  batchSize = 50,
+  translate: (batch: string[]) => Promise<(string | null)[] | null>,
+  batchSize = 40,
 ): Promise<string[]> {
   // A line or two may keep its own words, but a service that keeps failing is not translating at all, and its file would be
   // the original under another language's name. So it stops instead.
@@ -93,11 +93,22 @@ export async function translateLines(
   let kept = 0;
   async function attempt(batch: string[]): Promise<string[]> {
     const result = await translate(batch);
-    if (result && result.length === batch.length) return result.map((line, index) => tidy(line) || batch[index]);
+    const usable = result && result.length === batch.length ? result : null;
+    const missing = usable ? batch.map((_, index) => index).filter((index) => !tidy(usable[index] ?? "")) : [];
+    if (usable && missing.length === 0) return usable.map((line) => tidy(line ?? ""));
     if (batch.length === 1) {
       kept += 1;
       if (kept > allowed) throw new Error(TRANSLATION_FAILED);
       return batch;
+    }
+    // The lines that came back are kept and only the missing ones are asked again. A reply with none is asked again in halves.
+    if (usable && missing.length < batch.length) {
+      const again = await attempt(missing.map((index) => batch[index]));
+      const merged = usable.map((line) => tidy(line ?? ""));
+      missing.forEach((index, at) => {
+        merged[index] = again[at];
+      });
+      return merged;
     }
     const half = Math.ceil(batch.length / 2);
     return [...(await attempt(batch.slice(0, half))), ...(await attempt(batch.slice(half)))];

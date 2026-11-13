@@ -56,6 +56,12 @@ describe("translating in batches", () => {
     expect(await translateLines(["a", "b", "c", "d"], translate, 4)).toEqual(["«a»", "«b»", "«c»", "«d»"]);
   });
 
+  it("asks again only for the lines that came back missing", async () => {
+    const translate = vi.fn(async (batch: string[]) => batch.map((line) => (line === "b" && batch.length > 1 ? null : `«${line}»`)));
+    expect(await translateLines(["a", "b", "c"], translate, 3)).toEqual(["«a»", "«b»", "«c»"]);
+    expect(translate.mock.calls.map(([batch]) => batch)).toEqual([["a", "b", "c"], ["b"]]);
+  });
+
   it("stops, rather than save the original under another language's name, when nothing translates", async () => {
     const translate = vi.fn(async () => null);
     const lines = Array.from({ length: 100 }, (_, index) => `line ${index}`);

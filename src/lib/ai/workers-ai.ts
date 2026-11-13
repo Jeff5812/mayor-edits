@@ -68,8 +68,8 @@ export async function hearSpeech(wav: ArrayBuffer, options: { language?: string;
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 const nameOf = (code: string) => languageNames.of(code) ?? code;
 
-// The lines of a JSON reply, or null when the reply was not that shape.
-function readLines(reply: unknown): string[] | null {
+// The translated lines of a reply, by their numbers. A line the reply left out is null, and a reply with none at all is null.
+function readLines(reply: unknown, count: number): (string | null)[] | null {
   let value = reply;
   if (typeof reply === "string") {
     const start = reply.indexOf("{");
@@ -81,22 +81,32 @@ function readLines(reply: unknown): string[] | null {
       return null;
     }
   }
-  const lines = (value as { lines?: unknown } | null)?.lines;
-  return Array.isArray(lines) && lines.every((line) => typeof line === "string") ? lines : null;
+  if (!value || typeof value !== "object") return null;
+  // Some replies wrap the answer, as {"lines": ...}.
+  const answer = (value as { lines?: unknown }).lines ?? value;
+  if (Array.isArray(answer)) return answer.length === count && answer.every((line) => typeof line === "string") ? (answer as string[]) : null;
+  if (!answer || typeof answer !== "object") return null;
+  const numbered = answer as Record<string, unknown>;
+  const lines = Array.from({ length: count }, (_, index) => {
+    const line = numbered[String(index + 1)];
+    return typeof line === "string" && line.trim() ? line : null;
+  });
+  return lines.some((line) => line !== null) ? lines : null;
 }
 
-// Subtitle lines from one language into another, one for one. Null means the reply did not keep the lines in step, and the
-// caller asks again in smaller batches.
-export async function translateLines(lines: string[], from: string, to: string): Promise<string[] | null> {
+// Subtitle lines from one language into another. The lines go out numbered and come back by number, so a reply that merges two
+// pieces of a sentence cannot shift every line after it. A line missing from the reply is null, and the caller asks again.
+export async function translateLines(lines: string[], from: string, to: string): Promise<(string | null)[] | null> {
   const messages = [
     {
       role: "system",
       content:
-        `You translate film subtitles from ${nameOf(from)} into ${nameOf(to)}. Translate every line, keeping its meaning, names and ` +
-        `tone, and keep lines short, as subtitles are. Answer with JSON only, in the form {"lines": [...]}, holding exactly one ` +
-        `translated line for each line given, in the same order.`,
+        `You translate film subtitles from ${nameOf(from)} into ${nameOf(to)}. You are given a JSON object whose keys number the ` +
+        `subtitle lines in order. The lines are pieces of running speech, so a sentence often carries on into the next line: ` +
+        `translate each piece so that, read in order, they make natural ${nameOf(to)}, keeping names, meaning and tone, and keep ` +
+        `each line short. Answer with JSON only: an object with exactly the same keys, each holding the translation of that line.`,
     },
-    { role: "user", content: JSON.stringify({ lines }) },
+    { role: "user", content: JSON.stringify(Object.fromEntries(lines.map((line, index) => [String(index + 1), line]))) },
   ];
   const plain = { messages, temperature: 0.2, max_completion_tokens: 8192 };
   type Reply = { choices?: { message?: { content?: string } }[]; response?: unknown };
@@ -109,5 +119,5 @@ export async function translateLines(lines: string[], from: string, to: string):
     if (!(error instanceof AiError) || error.status !== 400) throw error;
     result = await run<Reply>(TRANSLATION_MODEL, plain, 55_000);
   }
-  return readLines(result.choices?.[0]?.message?.content ?? result.response ?? null);
+  return readLines(result.choices?.[0]?.message?.content ?? result.response ?? null, lines.length);
 }

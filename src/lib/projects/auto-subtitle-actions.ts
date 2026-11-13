@@ -70,9 +70,9 @@ export async function hearSoundPiece(form: FormData): Promise<ActionResult<Heard
   });
 }
 
-// A batch of lines into another language. Null lines means the model did not keep them in step, and the browser asks again
-// in smaller batches.
-export async function translateSubtitleLines(lines: string[], from: string, to: string): Promise<ActionResult<{ lines: string[] | null }>> {
+// A batch of lines into another language. A null line came back missing, and null lines means none came back at all: the
+// browser asks again for what is missing.
+export async function translateSubtitleLines(lines: string[], from: string, to: string): Promise<ActionResult<{ lines: (string | null)[] | null }>> {
   return asAdmin(async () => {
     if (!isAiConfigured()) return { ok: false, error: "Automatic subtitles are not switched on." };
     const valid = Array.isArray(lines) && lines.length > 0 && lines.length <= MAX_LINES && lines.every((line) => typeof line === "string" && line.length <= 400);
