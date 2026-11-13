@@ -22,7 +22,7 @@ export interface SubtitleJob {
 }
 
 const NO_JOB: SubtitleJob = { phase: "idle", step: null, error: null, saved: [] };
-const CANNOT_FETCH = "The stored video could not be read from this page. Choose the video file on this device instead.";
+export const CANNOT_FETCH = "The stored video could not be read from this page. Choose the video file on this device instead.";
 
 export class ProjectUpload {
   state: UploadState = INITIAL_UPLOAD_STATE;

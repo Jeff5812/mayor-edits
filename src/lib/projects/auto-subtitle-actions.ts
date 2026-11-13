@@ -1,6 +1,6 @@
 "use server";
 
-import { type HeardPiece, hearSpeech, isAiConfigured, translateLines } from "@/lib/ai/workers-ai";
+import { type HeardPiece, hearSpeech, isAiConfigured, isAllowanceSpent, translateLines } from "@/lib/ai/workers-ai";
 import { isR2Configured, listObjectKeys } from "@/lib/media/r2";
 import { type SubtitleCode, isSubtitleCode, subtitleCodesFromKeys, subtitlePrefix } from "@/lib/media/subtitles";
 import { isUuid } from "@/lib/media/validation";
@@ -17,6 +17,9 @@ const MAX_PIECE_BYTES = 1_000_000;
 const MAX_LINES = 60;
 const LANGUAGE = /^[a-z]{2,3}$/;
 const SERVICE_DOWN = "The subtitle service could not be reached. Please try again in a moment.";
+// Waiting a few seconds cannot help with this one, so the owner is told at once.
+const ALLOWANCE_SPENT =
+  "Today's free allowance for automatic subtitles is used up. Every language finished so far is saved. It renews at midnight UTC: press the button again after that to make the rest.";
 
 export interface AutoSubtitlePlan {
   ready: boolean;
@@ -61,6 +64,7 @@ export async function hearSoundPiece(form: FormData): Promise<ActionResult<Heard
       return { ok: true, data: await hearSpeech(await audio.arrayBuffer(), { language: LANGUAGE.test(language) ? language : undefined, prompt }) };
     } catch (error) {
       console.error("[subtitles] speech failed:", error instanceof Error ? error.message : error);
+      if (isAllowanceSpent(error)) return { ok: false, error: ALLOWANCE_SPENT };
       return { ok: false, error: SERVICE_DOWN, retryable: true };
     }
   });
@@ -77,6 +81,7 @@ export async function translateSubtitleLines(lines: string[], from: string, to: 
       return { ok: true, data: { lines: await translateLines(lines, from, to) } };
     } catch (error) {
       console.error("[subtitles] translation failed:", error instanceof Error ? error.message : error);
+      if (isAllowanceSpent(error)) return { ok: false, error: ALLOWANCE_SPENT };
       return { ok: false, error: SERVICE_DOWN, retryable: true };
     }
   });

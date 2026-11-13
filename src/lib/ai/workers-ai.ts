@@ -20,6 +20,11 @@ class AiError extends Error {
   }
 }
 
+// Cloudflare's answer once the day's free allowance of neurons is spent. It renews at midnight UTC.
+export function isAllowanceSpent(error: unknown): boolean {
+  return error instanceof AiError && error.status === 429 && /neuron|daily|free allocation/i.test(error.message);
+}
+
 async function run<T>(model: string, input: unknown, timeoutMs: number): Promise<T> {
   const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.R2_ACCOUNT_ID}/ai/run/${model}`, {
     method: "POST",

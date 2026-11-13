@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { UNREADABLE_FILE, explainFailure, isFileReadError } from "@/lib/media/failures";
 import { SUBTITLE_ACCEPT, SUBTITLE_LANGUAGES, SUBTITLE_MAX_BYTES, type SubtitleCode, subtitleLabel, toWebVtt } from "@/lib/media/subtitles";
-import type { ProjectUpload, SubtitleJob } from "@/lib/media/upload-registry";
+import { CANNOT_FETCH, type ProjectUpload, type SubtitleJob } from "@/lib/media/upload-registry";
 import { VIDEO_ACCEPT } from "@/lib/media/validation";
 import { autoSubtitlePlan } from "@/lib/projects/auto-subtitle-actions";
 import { listProjectSubtitles, removeProjectSubtitle, saveProjectSubtitle } from "@/lib/projects/subtitle-actions";
@@ -27,8 +27,8 @@ export function SubtitlesPanel({ projectId, upload, job, hasVideo }: { projectId
   const titleId = useId();
   const languageId = useId();
 
-  // Listed again whenever automatic subtitles finish, so their languages appear at once.
-  const finished = job.phase === "done" ? job.saved.join() : "";
+  // Listed again whenever automatic subtitles stop, finished or not, so every language they saved appears at once.
+  const finished = job.phase === "done" || job.phase === "failed" ? `${job.phase} ${job.saved.join()} ${job.error ?? ""}` : "";
   useEffect(() => {
     let current = true;
     listProjectSubtitles(projectId)
@@ -173,8 +173,12 @@ export function SubtitlesPanel({ projectId, upload, job, hasVideo }: { projectId
           ) : null}
           {job.phase === "done" && job.saved.length > 0 ? <p className={`mt-3 ${successClass}`}>Made: {listOf(job.saved)}.</p> : null}
           {job.phase === "failed" && job.error ? (
-            <div role="alert" className={`mt-3 ${alertClass}`}>
-              <p>{job.error}</p>
+            <p role="alert" className={`mt-3 ${alertClass}`}>
+              {job.error}
+            </p>
+          ) : null}
+          {job.phase === "failed" && job.error === CANNOT_FETCH ? (
+            <div>
               {/* The same work from the file on this device, for when the stored copy cannot be read here. */}
               <input
                 ref={videoInput}
